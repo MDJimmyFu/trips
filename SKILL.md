@@ -326,7 +326,13 @@ sub-headings as you like:
    hotel/restaurant/attraction, look up real coordinates if possible.
 4. **`ref` values must exactly match** an existing `### Item Name`. If
    you add a new stop to ## 行程, make sure the referenced item exists
-   in the corresponding section.
+   in the corresponding section. Section AND name must match exactly,
+   including punctuation (full-width vs half-width parens, spaces). The
+   site uses these refs both to (a) open the linked card on click and
+   (b) generate the **Google Maps directions button** that appears next
+   to the `next` field — without a working ref the button silently
+   falls back to the stop's display name as a text query, which is less
+   reliable.
 5. **Image paths** are relative to the repo root, not the .md file:
    use `images/{trip-slug}/{file}.jpg`.
 6. **Don't invent booking refs / prices.** If unknown, omit the field.

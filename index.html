@@ -688,6 +688,33 @@ main {
   font-family: var(--mono);
   color: var(--accent);
 }
+.stop-next-text {
+  flex: 1;
+  min-width: 0;
+}
+.stop-next-dir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-soft);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.stop-next-dir:hover {
+  background: var(--accent);
+  color: #FAF6EE;
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+.stop-next-dir:active { transform: scale(0.96); }
 
 /* ===== TRANSIT MODE GROUPING ===== */
 .transit-section {
@@ -1557,6 +1584,62 @@ function buildGmapsURL(item) {
   if (parts.length === 0 && f.coordinates) parts.push(f.coordinates);
   if (parts.length === 0) return null;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(' '))}`;
+}
+
+/** Pick the best Google-Maps query string for an item: name+address > name > coords. */
+function pickGmapsQuery(item) {
+  if (!item) return null;
+  const f = item.fields || {};
+  const parts = [];
+  if (item.name) parts.push(item.name);
+  if (f.address) parts.push(f.address);
+  if (parts.length) return parts.join(' ');
+  if (f.coordinates) {
+    const c = parseCoords(f.coordinates);
+    if (c) return `${c[0]},${c[1]}`;
+  }
+  return null;
+}
+
+/** Resolve a `ref` like "住宿:Hotel X" to the actual item object, or null. */
+function resolveRefItem(ref) {
+  if (!ref) return null;
+  const m = ref.match(/^([^:：]+)[:：](.+)$/);
+  if (!m) return null;
+  const sec = state.parsed?.sections?.find(s => s.name === m[1].trim());
+  if (!sec || !sec.items) return null;
+  return sec.items.find(it => it.name === m[2].trim()) || null;
+}
+
+/** Map Chinese travel-mode hints in the `next` field to Google travelmode codes. */
+function inferTravelMode(nextStr) {
+  const s = String(nextStr || '');
+  if (/步行|走路/.test(s)) return 'walking';
+  if (/騎|自行車|腳踏車|單車|U[\- ]?Bike|YouBike/i.test(s)) return 'bicycling';
+  if (/開車|自駕|自行開車|計程車|租車|的士|Uber|Lyft|計程/.test(s)) return 'driving';
+  // Any rail / bus / subway hint, including 飛機 (treated as transit since
+  // Google Maps Transit covers air for some routes).
+  if (/地鐵|捷運|火車|電車|公車|巴士|大眾|新幹線|高鐵|地下鐵|JR|Skyliner|N'?EX|MTR|Metro|Bus|Subway/i.test(s)) return 'transit';
+  return 'transit'; // sensible default for city travel
+}
+
+/** Build a Google Maps Directions URL between two stops, or null if not enough info. */
+function buildDirectionsURL(fromStop, toStop) {
+  if (!fromStop || !toStop) return null;
+  const fromItem = resolveRefItem(fromStop.fields?.ref);
+  const toItem   = resolveRefItem(toStop.fields?.ref);
+  // Fall back to the stop's own name if no ref-resolved item exists.
+  const orig = pickGmapsQuery(fromItem) || fromStop.name;
+  const dest = pickGmapsQuery(toItem)   || toStop.name;
+  if (!orig || !dest) return null;
+  const mode = inferTravelMode(fromStop.fields?.next);
+  const params = new URLSearchParams({
+    api: '1',
+    origin: orig,
+    destination: dest,
+    travelmode: mode,
+  });
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
 /* =========================================================
@@ -2439,7 +2522,9 @@ function bindCardClicks() {
 
 /* ----- Day timeline ----- */
 function renderDay(day, idx) {
-  const stopsHTML = day.stops.map((s, i) => renderStop(s, i)).join('');
+  const stopsHTML = day.stops
+    .map((s, i) => renderStop(s, i, day.stops[i + 1] || null))
+    .join('');
   return `
     <div class="timeline-day">
       <div class="timeline-day-header">
@@ -2460,12 +2545,18 @@ function renderDay(day, idx) {
   `;
 }
 
-function renderStop(s, idx) {
+function renderStop(s, idx, nextStop) {
   const time = s.timeStart ? `${s.timeStart}${s.timeEnd ? '–' + s.timeEnd : ''}` : '';
   const ref = s.fields.ref || '';
   const refDisplay = ref.split(/[:：]/)[0] || '';
   const next = s.fields.next || '';
   const notes = s.fields.notes || '';
+  // Directions URL only available when there's a next stop AND we can resolve
+  // both endpoints to either a ref'd item or a stop name.
+  const dirURL = nextStop ? buildDirectionsURL(s, nextStop) : null;
+  const dirBtn = dirURL
+    ? `<a class="stop-next-dir" href="${escHTML(dirURL)}" target="_blank" rel="noopener" title="Google Maps 導航 → ${escHTML(nextStop.name)}">→</a>`
+    : '';
   return `
     <div>
       <div class="stop-item">
@@ -2476,7 +2567,7 @@ function renderStop(s, idx) {
           ${notes ? `<div class="stop-notes">${escHTML(notes)}</div>` : ''}
         </div>
       </div>
-      ${next ? `<div class="stop-next">${escHTML(next)}</div>` : ''}
+      ${next ? `<div class="stop-next"><span class="stop-next-text">${escHTML(next)}</span>${dirBtn}</div>` : ''}
     </div>
   `;
 }
