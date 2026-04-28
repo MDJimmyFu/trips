@@ -1,10 +1,14 @@
 # 旅誌 · Trip Journal
 
-一個單檔 HTML 的 GitHub Pages 行程站。把行程寫成 Markdown，網站會自動讀取並渲染成有地圖、卡片、Modal、版本切換、搜尋的旅遊頁面。
+一個單檔 HTML 的行程站。把行程寫成 Markdown，網站會自動讀取並渲染成有地圖、卡片、Modal、版本切換、搜尋的旅遊頁面。
+
+支援兩種部署模式：
+- **GitHub Pages**（簡單，公開）— 適合純公開分享，5 分鐘搞定
+- **Cloudflare Pages + Access**（推薦，可鎖私人版+另出公開版） — 詳見 [DEPLOY.md](DEPLOY.md)
 
 ---
 
-## 一、初次部署（5 分鐘）
+## 一、GitHub Pages 部署（5 分鐘）
 
 ### 1. 建一個新 repo
 
