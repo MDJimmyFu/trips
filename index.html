@@ -360,6 +360,9 @@ main {
   overflow: hidden;
   position: relative;
   min-height: 200px;
+  /* isolate Leaflet's internal high z-indexes so they can't escape this card */
+  z-index: 0;
+  isolation: isolate;
 }
 .dash-map .leaflet-container {
   height: 220px;
@@ -571,6 +574,9 @@ main {
   overflow: hidden;
   border: 1px solid var(--line);
   background: var(--bg-soft);
+  /* isolate Leaflet's internal high z-indexes so they can't escape this card */
+  z-index: 0;
+  isolation: isolate;
 }
 .day-map .leaflet-container { height: 100%; }
 @media (max-width: 880px) {
@@ -1157,10 +1163,25 @@ function weekdayCN(d) {
   if (!d) return '';
   return ['週日','週一','週二','週三','週四','週五','週六'][d.getDay()];
 }
-function gmapsLink(coordOrAddr, name) {
-  if (!coordOrAddr) return null;
-  const q = encodeURIComponent(coordOrAddr.includes(',') && /^-?\d/.test(coordOrAddr.trim()) ? coordOrAddr : (name ? name + ' ' + coordOrAddr : coordOrAddr));
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+/**
+ * Build a Google Maps search URL for an item.
+ * Prefers human-readable text (name, address) over raw coordinates so that
+ * when the user lands in Google Maps they immediately see what place it is
+ * and can star/share/use it normally. Coordinates are last-resort only.
+ */
+function buildGmapsURL(item) {
+  if (!item) return null;
+  const f = item.fields || {};
+  // 1. Explicit URL (e.g. from Google Maps share) takes precedence.
+  if (f.google_maps) return f.google_maps;
+  // 2. Build a text query: name (+ address), so the result is unambiguous.
+  const parts = [];
+  if (item.name) parts.push(item.name);
+  if (f.address) parts.push(f.address);
+  // 3. Coordinates only as a last resort, when there is literally no name.
+  if (parts.length === 0 && f.coordinates) parts.push(f.coordinates);
+  if (parts.length === 0) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(' '))}`;
 }
 
 /* =========================================================
@@ -1839,7 +1860,7 @@ function renderItemModalContent(item, sectionName) {
 
   // Buttons row
   const btns = [];
-  const gmapsURL = f.google_maps || (f.coordinates ? gmapsLink(f.coordinates, item.name) : (f.address ? gmapsLink(f.address, item.name) : null));
+  const gmapsURL = buildGmapsURL(item);
   if (gmapsURL) btns.push(`<a class="btn-primary" href="${escHTML(gmapsURL)}" target="_blank" rel="noopener">📍 Google Maps 導航</a>`);
   if (f.booking_url) btns.push(`<a class="btn-secondary" href="${escHTML(f.booking_url)}" target="_blank" rel="noopener">🎫 預約 / 訂購</a>`);
   if (f.website) btns.push(`<a class="btn-secondary" href="${escHTML(f.website)}" target="_blank" rel="noopener">🔗 官方網站</a>`);
