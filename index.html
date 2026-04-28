@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>旅誌 · Trip Journal</title>
+
+<!-- Fonts: editorial / travel journal aesthetic -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Noto+Serif+TC:wght@400;500;700&family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
+<!-- Markdown / YAML / Map / Search -->
+<script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+/* ===== DESIGN TOKENS ===== */
+:root {
+  --bg: #FAF6EE;
+  --bg-soft: #F2EBDD;
+  --bg-card: #FFFCF5;
+  --ink: #1F3A2D;
+  --ink-soft: #4A5C53;
+  --ink-mute: #8A958E;
+  --line: #D9D0BD;
+  --line-soft: #E8DFCB;
+  --accent: #C9573A;
+  --accent-soft: #E8B5A2;
+  --gold: #B58A3C;
+
+  --serif: 'Cormorant Garamond', 'Noto Serif TC', 'Crimson Text', Georgia, serif;
+  --serif-body: 'Crimson Text', 'Noto Serif TC', Georgia, serif;
+  --sans: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --shadow-sm: 0 1px 2px rgba(31, 58, 45, 0.06);
+  --shadow: 0 4px 16px -4px rgba(31, 58, 45, 0.12), 0 1px 3px rgba(31, 58, 45, 0.06);
+  --shadow-lg: 0 24px 48px -12px rgba(31, 58, 45, 0.20), 0 4px 12px rgba(31, 58, 45, 0.08);
+}
+[data-theme="dark"] {
+  --bg: #0E1F18;
+  --bg-soft: #15281F;
+  --bg-card: #1B3026;
+  --ink: #E8DFD0;
+  --ink-soft: #B7B0A0;
+  --ink-mute: #7A8479;
+  --line: #2A3F33;
+  --line-soft: #1F332A;
+  --accent: #E07757;
+  --accent-soft: #6B3A2C;
+  --gold: #D4A85C;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.65;
+  font-size: 16px;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(201, 87, 58, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 100%, rgba(31, 58, 45, 0.05) 0%, transparent 50%);
+}
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(224, 119, 87, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 100%, rgba(212, 168, 92, 0.04) 0%, transparent 50%);
+}
+
+/* ===== TYPOGRAPHY ===== */
+h1, h2, h3, h4 { font-family: var(--serif); color: var(--ink); line-height: 1.25; font-weight: 500; }
+h1 { font-size: clamp(2rem, 5vw, 3.5rem); letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); letter-spacing: -0.01em; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.15rem; }
+
+a { color: var(--accent); text-decoration: none; transition: opacity 0.2s; }
+a:hover { opacity: 0.7; }
+
+/* ===== HEADER ===== */
+header.site-header {
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.site-header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.brand {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-style: italic;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.brand::before {
+  content: "✦";
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-style: normal;
+}
+.nav-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+select, button.nav-btn {
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--line);
+  background: var(--bg-card);
+  color: var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+select:hover, button.nav-btn:hover { border-color: var(--accent); }
+select:focus, button.nav-btn:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.nav-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--bg-card);
+  color: var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+/* ===== MAIN LAYOUT ===== */
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 5rem;
+}
+
+/* ===== DASHBOARD HERO ===== */
+.dashboard {
+  margin-bottom: 3rem;
+  position: relative;
+}
+.dashboard-cover {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+}
+.dashboard-cover img {
+  width: 100%;
+  height: 320px;
+  object-fit: cover;
+  display: block;
+  filter: saturate(0.92);
+}
+.dashboard-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(31, 58, 45, 0.5) 70%, rgba(31, 58, 45, 0.85) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 2rem 2.5rem;
+  color: #FAF6EE;
+}
+.dashboard-cover-overlay .trip-meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+}
+.dashboard-cover-overlay h1 {
+  color: #FAF6EE;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+.dashboard-cover-overlay .summary {
+  font-family: var(--serif-body);
+  font-size: 1.1rem;
+  font-style: italic;
+  opacity: 0.9;
+  max-width: 600px;
+}
+.dashboard-cover-overlay .tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+.dashboard-cover-overlay .tag-chip {
+  padding: 0.2rem 0.7rem;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-family: var(--sans);
+}
+
+/* dashboard without cover */
+.dashboard-headline {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.dashboard-headline .trip-meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 0.5rem;
+}
+.dashboard-headline .summary {
+  font-family: var(--serif-body);
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+  max-width: 700px;
+}
+.dashboard-headline .tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+.tag-chip {
+  padding: 0.2rem 0.7rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  font-family: var(--sans);
+}
+
+/* dashboard cards row */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 880px) {
+  .dashboard-grid { grid-template-columns: 1fr 1fr; }
+  .dashboard-grid > .dash-map { grid-column: 1 / -1; }
+}
+@media (max-width: 540px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+.dash-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+}
+.dash-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 0.5rem;
+}
+.dash-value {
+  font-family: var(--serif);
+  font-size: 2.5rem;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1;
+}
+.dash-value .unit {
+  font-size: 1rem;
+  color: var(--ink-soft);
+  margin-left: 0.25rem;
+  font-style: italic;
+}
+.dash-sub {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+  font-style: italic;
+  font-family: var(--serif-body);
+}
+.pacing-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.pacing-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.pacing-bar-row .pacing-name { width: 60px; color: var(--ink-soft); }
+.pacing-bar-row .pacing-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pacing-bar-row .pacing-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+.pacing-bar-row .pacing-pct {
+  width: 32px;
+  text-align: right;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+}
+
+.dash-map {
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  min-height: 200px;
+}
+.dash-map .leaflet-container {
+  height: 220px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+}
+
+/* ===== TABS ===== */
+.tabs-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.tab-btn {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+  padding: 0.85rem 1.25rem;
+  background: none;
+  border: none;
+  color: var(--ink-mute);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-btn .tab-count {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  margin-left: 0.4rem;
+  color: var(--ink-mute);
+  background: var(--bg-soft);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* ===== TAB CONTENT ===== */
+.tab-content { animation: fadeIn 0.3s ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== ITEM CARDS GRID ===== */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.25s;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-soft);
+}
+.card-image {
+  width: 100%;
+  height: 180px;
+  background: var(--bg-soft);
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-mute);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+.card-tag {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: var(--bg-card);
+  color: var(--accent);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-family: var(--sans);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.card-body {
+  padding: 1.1rem 1.25rem 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.card-title {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-bottom: 0.15rem;
+}
+.card-subtitle {
+  font-family: var(--serif-body);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+.card-meta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-mute);
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+.card-meta-item { display: inline-flex; align-items: center; gap: 0.25rem; }
+.card-notes {
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-soft);
+  border-left: 2px solid var(--accent);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-family: var(--serif-body);
+  font-style: italic;
+  border-radius: 2px;
+}
+
+/* ===== TIMELINE (行程) ===== */
+.timeline-day {
+  margin-bottom: 3rem;
+}
+.timeline-day-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--line);
+}
+.day-number {
+  font-family: var(--serif);
+  font-size: 2.5rem;
+  font-style: italic;
+  color: var(--accent);
+  line-height: 1;
+}
+.day-number-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.day-date {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  color: var(--ink);
+}
+.day-weekday {
+  color: var(--ink-mute);
+  font-size: 0.95rem;
+  margin-left: 0.5rem;
+  font-style: italic;
+}
+.day-stops-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-mute);
+}
+
+.day-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 880px) {
+  .day-grid { grid-template-columns: 1fr; }
+}
+
+.day-map {
+  position: sticky;
+  top: 80px;
+  height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+.day-map .leaflet-container { height: 100%; }
+@media (max-width: 880px) {
+  .day-map { position: static; height: 280px; }
+}
+
+.stops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+.stops-list::before {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 1px;
+  background: var(--line);
+}
+.stop-item {
+  position: relative;
+  padding-left: 2.5rem;
+  padding-bottom: 1.5rem;
+}
+.stop-marker {
+  position: absolute;
+  left: 0.3rem;
+  top: 0.25rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  z-index: 2;
+}
+.stop-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.stop-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+.stop-time {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+.stop-name {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+.stop-ref-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--ink-mute);
+  font-family: var(--sans);
+  background: var(--bg-soft);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.stop-notes {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-style: italic;
+  font-family: var(--serif-body);
+  margin-top: 0.35rem;
+}
+.stop-next {
+  margin-left: 2.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--ink-mute);
+  font-family: var(--sans);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.stop-next::before {
+  content: "↓";
+  font-family: var(--mono);
+  color: var(--accent);
+}
+
+/* ===== TRANSIT MODE GROUPING ===== */
+.transit-section {
+  margin-bottom: 2.5rem;
+}
+.transit-section h3 {
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  font-style: italic;
+  color: var(--ink);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ===== FREE-FORM SECTIONS (備案 / 語言) ===== */
+.freeform-content {
+  font-family: var(--serif-body);
+  font-size: 1.05rem;
+  color: var(--ink);
+  max-width: 720px;
+  margin: 0 auto;
+}
+.freeform-content h3 {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--accent);
+  margin-top: 2rem;
+  margin-bottom: 0.85rem;
+}
+.freeform-content h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.freeform-content ul, .freeform-content ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+.freeform-content li {
+  margin-bottom: 0.35rem;
+  line-height: 1.7;
+}
+.freeform-content p { margin-bottom: 1rem; }
+.freeform-content code {
+  background: var(--bg-soft);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+/* ===== MODAL ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 58, 45, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 200;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  animation: backdropIn 0.2s;
+}
+[data-theme="dark"] .modal-backdrop { background: rgba(0, 0, 0, 0.7); }
+.modal-backdrop.open { display: flex; }
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--bg-card);
+  border-radius: 10px;
+  max-width: 720px;
+  width: 100%;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  animation: modalIn 0.25s ease-out;
+  position: relative;
+}
+@keyframes modalIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.modal-image {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  background: var(--bg-soft);
+  display: block;
+}
+.modal-image-placeholder {
+  width: 100%;
+  height: 100px;
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-mute);
+  font-style: italic;
+  font-family: var(--serif);
+}
+.modal-body { padding: 1.75rem 2rem 2rem; }
+.modal-tag-row { margin-bottom: 0.65rem; }
+.modal-tag {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+[data-theme="dark"] .modal-tag {
+  background: var(--accent-soft);
+  color: var(--bg-card);
+}
+.modal-title {
+  font-family: var(--serif);
+  font-size: 2rem;
+  margin-bottom: 0.35rem;
+  line-height: 1.15;
+}
+.modal-subtitle {
+  font-family: var(--serif-body);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+}
+.modal-fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.65rem 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  font-size: 0.92rem;
+}
+.modal-field-key {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  align-self: center;
+}
+.modal-field-value {
+  color: var(--ink);
+  font-family: var(--serif-body);
+  word-break: break-word;
+}
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.btn-primary, .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #FAF6EE;
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.modal-description {
+  font-family: var(--serif-body);
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--ink);
+}
+.modal-description p { margin-bottom: 1rem; }
+.modal-description ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+.modal-description li { margin-bottom: 0.25rem; }
+.modal-description img { max-width: 100%; border-radius: 6px; margin: 1rem 0; }
+.modal-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+}
+[data-theme="dark"] .modal-close {
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--ink);
+}
+.modal-close:hover { background: var(--accent); color: #fff; }
+
+/* ===== SEARCH MODAL ===== */
+.search-modal {
+  background: var(--bg-card);
+  border-radius: 10px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+}
+.search-input-wrap {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.search-input {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+}
+.search-input::placeholder { color: var(--ink-mute); font-style: italic; }
+.search-results {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.5rem 0;
+}
+.search-result {
+  padding: 0.85rem 1.25rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line-soft);
+}
+.search-result:hover { background: var(--bg-soft); }
+.search-result-meta {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--ink-mute);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+.search-result-title {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.search-result-snippet {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 0.25rem;
+  font-family: var(--serif-body);
+  font-style: italic;
+}
+.search-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--ink-mute);
+  font-family: var(--serif-body);
+  font-style: italic;
+}
+
+/* ===== LOADING / ERROR ===== */
+.loading-state, .error-state {
+  text-align: center;
+  padding: 5rem 2rem;
+  color: var(--ink-soft);
+}
+.loading-state .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-state .error-icon { font-size: 2rem; margin-bottom: 1rem; }
+.error-state h2 { color: var(--ink); margin-bottom: 0.5rem; }
+.error-state code {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-soft);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ===== LEAFLET POPUP TWEAKS ===== */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-card);
+  color: var(--ink);
+  border-radius: 6px;
+  font-family: var(--sans);
+}
+.leaflet-popup-content {
+  margin: 0.65rem 0.85rem;
+  font-size: 0.85rem;
+}
+.leaflet-popup-tip { background: var(--bg-card); }
+.leaflet-popup-content strong {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.numbered-marker {
+  background: var(--accent);
+  color: #FAF6EE;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 50%;
+  border: 2px solid var(--bg-card);
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+
+/* ===== MOBILE TWEAKS ===== */
+@media (max-width: 640px) {
+  .site-header-inner { padding: 0.75rem 1rem; }
+  main { padding: 1.25rem 1rem 4rem; }
+  .dashboard-cover img { height: 240px; }
+  .dashboard-cover-overlay { padding: 1.5rem; }
+  .modal-body { padding: 1.25rem 1.5rem 1.5rem; }
+  .modal-fields { padding: 0.85rem 1rem; gap: 0.5rem 1rem; }
+  .day-number { font-size: 2rem; }
+}
+
+/* ===== UTILITY ===== */
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-header-inner">
+    <div class="brand">旅誌</div>
+    <div class="nav-controls">
+      <select id="trip-select" aria-label="行程"></select>
+      <select id="version-select" aria-label="版本"></select>
+      <button class="icon-btn" id="search-btn" aria-label="搜尋" title="搜尋 (⌘K)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <button class="icon-btn" id="theme-btn" aria-label="切換主題" title="切換深色模式">
+        <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41"/></svg>
+        <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+  <div class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>載入中...</p>
+  </div>
+</main>
+
+<!-- Item detail modal -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" id="modal-close" aria-label="關閉">×</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Search modal -->
+<div class="modal-backdrop" id="search-backdrop">
+  <div class="search-modal" onclick="event.stopPropagation()">
+    <div class="search-input-wrap">
+      <input type="text" class="search-input" id="search-input" placeholder="搜尋所有行程的住宿、餐廳、景點..." autocomplete="off"/>
+    </div>
+    <div class="search-results" id="search-results">
+      <div class="search-empty">輸入關鍵字開始搜尋</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG — adjust these for your repo
+   ========================================================= */
+const CONFIG = (() => {
+  // Best-effort auto-detection from the URL of GitHub Pages.
+  // Manual override: set window.TRIP_CONFIG before this script runs.
+  const manual = window.TRIP_CONFIG || {};
+  const host = location.hostname;
+  let owner = manual.owner;
+  let repo  = manual.repo;
+  if (!owner && host.endsWith('.github.io')) {
+    owner = host.replace('.github.io', '');
+  }
+  if (!repo) {
+    const seg = location.pathname.split('/').filter(Boolean);
+    repo = seg[0] || (owner ? `${owner}.github.io` : null);
+  }
+  return {
+    owner: owner || 'YOUR_GH_USERNAME',
+    repo: repo || 'YOUR_REPO',
+    branch: manual.branch || 'main',
+    tripsDir: manual.tripsDir || 'trips',
+    fallbackToLocal: manual.fallbackToLocal !== false, // try local files when GitHub fails (e.g. running file://)
+  };
+})();
+
+const RAW_BASE = `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}`;
+const API_BASE = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}`;
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = {
+  tree: null,           // [{trip: 'slug', versions: ['v1', 'v2']}, ...]
+  currentTrip: null,
+  currentVersion: null,
+  currentTab: null,
+  parsed: null,         // parsed md object
+  searchIndex: [],      // list of {trip, version, section, name, content}
+  fuse: null,
+  dayMaps: new Map(),   // dayIndex -> Leaflet map instance
+  overviewMap: null,
+};
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+const escHTML = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const slugify = s => String(s).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '');
+
+function parseDate(s) {
+  if (!s) return null;
+  if (s instanceof Date) return s;
+  const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3]);
+}
+function daysBetween(a, b) {
+  if (!a || !b) return 0;
+  return Math.round((b - a) / 86400000);
+}
+function fmtDate(d) {
+  if (!d) return '';
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+function weekdayCN(d) {
+  if (!d) return '';
+  return ['週日','週一','週二','週三','週四','週五','週六'][d.getDay()];
+}
+function gmapsLink(coordOrAddr, name) {
+  if (!coordOrAddr) return null;
+  const q = encodeURIComponent(coordOrAddr.includes(',') && /^-?\d/.test(coordOrAddr.trim()) ? coordOrAddr : (name ? name + ' ' + coordOrAddr : coordOrAddr));
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+/* =========================================================
+   GITHUB / FETCH LAYER
+   ========================================================= */
+async function fetchJSON(url) {
+  const r = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+  if (!r.ok) throw new Error(`${r.status} ${url}`);
+  return r.json();
+}
+async function fetchText(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${url}`);
+  return r.text();
+}
+
+/**
+ * Discover the tree of trips and versions.
+ * Strategy:
+ *   1) Try GitHub git/trees API with recursive=1 (one request, full tree)
+ *   2) Fall back to walking trips/* via Contents API
+ */
+async function loadTree() {
+  try {
+    const tree = await fetchJSON(`${API_BASE}/git/trees/${CONFIG.branch}?recursive=1`);
+    if (tree.tree) {
+      const map = new Map();
+      for (const node of tree.tree) {
+        if (node.type !== 'blob') continue;
+        if (!node.path.startsWith(CONFIG.tripsDir + '/')) continue;
+        if (!node.path.endsWith('.md')) continue;
+        const rel = node.path.slice((CONFIG.tripsDir + '/').length);
+        const parts = rel.split('/');
+        if (parts.length !== 2) continue;
+        const trip = parts[0];
+        const version = parts[1].replace(/\.md$/, '');
+        if (!map.has(trip)) map.set(trip, []);
+        map.get(trip).push(version);
+      }
+      const list = [...map.entries()].map(([trip, versions]) => ({
+        trip, versions: versions.sort()
+      })).sort((a, b) => a.trip.localeCompare(b.trip));
+      if (list.length) return list;
+    }
+  } catch (e) {
+    console.warn('git tree API failed, trying contents API:', e);
+  }
+
+  try {
+    const trips = await fetchJSON(`${API_BASE}/contents/${CONFIG.tripsDir}`);
+    const list = [];
+    for (const t of trips) {
+      if (t.type !== 'dir') continue;
+      const versions = await fetchJSON(`${API_BASE}/contents/${CONFIG.tripsDir}/${t.name}`);
+      list.push({
+        trip: t.name,
+        versions: versions
+          .filter(v => v.type === 'file' && v.name.endsWith('.md'))
+          .map(v => v.name.replace(/\.md$/, ''))
+          .sort()
+      });
+    }
+    return list.sort((a, b) => a.trip.localeCompare(b.trip));
+  } catch (e) {
+    console.warn('contents API failed:', e);
+    if (CONFIG.fallbackToLocal) return null;
+    throw e;
+  }
+}
+
+async function loadTripMd(trip, version) {
+  // Try raw github first, then local relative path
+  const urls = [
+    `${RAW_BASE}/${CONFIG.tripsDir}/${trip}/${version}.md`,
+    `${CONFIG.tripsDir}/${trip}/${version}.md`,
+  ];
+  let lastErr;
+  for (const u of urls) {
+    try { return await fetchText(u); }
+    catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+/* =========================================================
+   MARKDOWN PARSER (custom for our schema)
+   ========================================================= */
+function parseTrip(md) {
+  // 1) Frontmatter
+  let body = md;
+  let fm = {};
+  const fmMatch = md.match(/^---\s*\n([\s\S]+?)\n---\s*\n?/);
+  if (fmMatch) {
+    try { fm = jsyaml.load(fmMatch[1]) || {}; } catch (e) { console.warn('frontmatter parse:', e); }
+    body = md.slice(fmMatch[0].length);
+  }
+
+  // 2) Split into ## sections
+  const lines = body.split('\n');
+  const sections = []; // {name, body, isItinerary}
+  let curSection = null;
+  for (const ln of lines) {
+    const m = ln.match(/^##\s+(.+?)\s*$/);
+    if (m && !ln.startsWith('###')) {
+      curSection = { name: m[1].trim(), body: '' };
+      sections.push(curSection);
+    } else if (curSection) {
+      curSection.body += ln + '\n';
+    }
+  }
+
+  // 3) Parse each section
+  for (const sec of sections) {
+    if (sec.name === '行程') {
+      sec.isItinerary = true;
+      sec.days = parseItinerary(sec.body, fm);
+    } else if (sec.name === '備案' || sec.name === '語言' || /備案|附錄|語言/.test(sec.name)) {
+      sec.isFreeform = true;
+      sec.html = marked.parse(sec.body);
+    } else {
+      sec.items = parseItems(sec.body);
+    }
+  }
+
+  return { fm, sections };
+}
+
+/** Parse item-form sections (### Item Name + - **key**: value list) */
+function parseItems(body) {
+  const items = [];
+  const parts = body.split(/^###\s+/m).slice(1);
+  for (const part of parts) {
+    const lines = part.split('\n');
+    const name = lines.shift().trim();
+    const item = { name, fields: {}, image: null, images: [], description: '' };
+    let i = 0;
+    // Read leading field lines (- **key**: value)
+    while (i < lines.length) {
+      const ln = lines[i];
+      const fm = ln.match(/^-\s+\*\*([^*]+)\*\*\s*[:：]\s*(.*)$/);
+      if (fm) {
+        item.fields[fm[1].trim()] = fm[2].trim();
+        i++;
+      } else if (ln.trim() === '') {
+        i++;
+      } else {
+        break;
+      }
+    }
+    // Remainder = images + description
+    const rest = lines.slice(i).join('\n');
+    // Pull out images at top
+    const imgRe = /^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/gm;
+    let im;
+    let descBody = rest;
+    while ((im = imgRe.exec(rest)) !== null) {
+      const url = im[2].trim();
+      item.images.push(url);
+      if (!item.image) item.image = url;
+    }
+    // Strip leading images from description
+    descBody = descBody.replace(/^(\s*!\[[^\]]*\]\([^)]+\)\s*\n?)+/, '');
+    item.description = descBody.trim();
+    item.descriptionHTML = marked.parse(item.description || '');
+    items.push(item);
+  }
+  return items;
+}
+
+/** Parse the itinerary section into days with stops */
+function parseItinerary(body, fm) {
+  const startDate = parseDate(fm.start_date);
+  const days = [];
+  const dayParts = body.split(/^###\s+Day\s+\d+\s*[—–-]\s*(\d{4}-\d{2}-\d{2})\s*$/m);
+  // dayParts: [pre, date1, body1, date2, body2, ...]
+  for (let i = 1; i < dayParts.length; i += 2) {
+    const date = parseDate(dayParts[i]);
+    const dayBody = dayParts[i + 1] || '';
+    const stops = parseStops(dayBody);
+    const dayNumber = startDate ? daysBetween(startDate, date) + 1 : days.length + 1;
+    days.push({ dayNumber, date, stops });
+  }
+  days.sort((a, b) => (a.date - b.date));
+  // Re-number based on sorted date order if start_date is missing
+  if (!startDate) days.forEach((d, idx) => d.dayNumber = idx + 1);
+  return days;
+}
+
+function parseStops(body) {
+  const stops = [];
+  const parts = body.split(/^####\s+/m).slice(1);
+  for (const part of parts) {
+    const lines = part.split('\n');
+    const head = (lines.shift() || '').trim();
+    // Try: "HH:MM[–-~]HH:MM Place" or "HH:MM– Place" or just "Place"
+    const tm = head.match(/^(\d{1,2}:\d{2})\s*[–\-~]+\s*(\d{1,2}:\d{2})?\s*(.+)?$/);
+    let timeStart = null, timeEnd = null, name = head;
+    if (tm) {
+      timeStart = tm[1] || null;
+      timeEnd = tm[2] || null;
+      name = (tm[3] || '').trim() || head;
+    }
+    const stop = { name, timeStart, timeEnd, fields: {} };
+    let i = 0;
+    while (i < lines.length) {
+      const ln = lines[i];
+      const m = ln.match(/^-\s+\*\*([^*]+)\*\*\s*[:：]\s*(.*)$/);
+      if (m) { stop.fields[m[1].trim()] = m[2].trim(); i++; }
+      else if (ln.trim() === '') i++;
+      else break;
+    }
+    stops.push(stop);
+  }
+  return stops;
+}
+
+/* =========================================================
+   RESOLVE STOP REFS  (e.g. "住宿:Hotel Gracery Shinjuku")
+   ========================================================= */
+function findItemByRef(parsed, ref) {
+  if (!ref) return null;
+  const m = ref.match(/^([^:：]+)[:：]\s*(.+)$/);
+  if (!m) return null;
+  const sectionName = m[1].trim();
+  const itemName = m[2].trim();
+  for (const sec of parsed.sections) {
+    if (sec.name !== sectionName) continue;
+    if (!sec.items) continue;
+    return { section: sec, item: sec.items.find(it => it.name === itemName) || null };
+  }
+  return null;
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render() {
+  const root = $('#app');
+  const p = state.parsed;
+  if (!p) return;
+
+  // Determine tabs: 行程 first if exists, then everything else in author order
+  const tabs = [...p.sections];
+
+  // Default tab
+  if (!state.currentTab || !tabs.find(t => t.name === state.currentTab)) {
+    state.currentTab = tabs.length ? tabs[0].name : null;
+  }
+
+  root.innerHTML = `
+    ${renderDashboard(p)}
+    ${renderTabsBar(tabs)}
+    <div class="tab-content" id="tab-content"></div>
+  `;
+  renderTabContent();
+  initOverviewMap();
+}
+
+function renderDashboard(p) {
+  const fm = p.fm;
+  const start = parseDate(fm.start_date);
+  const end = parseDate(fm.end_date);
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // countdown
+  let countdownHTML;
+  if (start) {
+    const days = daysBetween(today, start);
+    if (days > 0) {
+      countdownHTML = `<div class="dash-value">${days}<span class="unit">天</span></div><div class="dash-sub">出發倒數</div>`;
+    } else if (start && end && today <= end) {
+      countdownHTML = `<div class="dash-value">旅行中</div><div class="dash-sub">${fmtDate(start)} – ${fmtDate(end)}</div>`;
+    } else {
+      countdownHTML = `<div class="dash-value">已歸來</div><div class="dash-sub">${fmtDate(start)} – ${fmtDate(end)}</div>`;
+    }
+  } else {
+    countdownHTML = `<div class="dash-value">—</div><div class="dash-sub">未設定日期</div>`;
+  }
+
+  // pacing — count stops by category in itinerary
+  const itinerary = p.sections.find(s => s.isItinerary);
+  let pacingHTML = `<div class="dash-sub">尚無行程資料</div>`;
+  if (itinerary && itinerary.days.length) {
+    const counts = { '景點': 0, '餐廳': 0, '住宿': 0, '交通': 0, '其他': 0 };
+    for (const d of itinerary.days) {
+      for (const s of d.stops) {
+        const ref = s.fields.ref;
+        const m = ref && ref.match(/^([^:：]+)[:：]/);
+        const cat = m ? m[1].trim() : '其他';
+        if (counts[cat] !== undefined) counts[cat]++;
+        else counts['其他']++;
+      }
+    }
+    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    pacingHTML = `<div class="pacing-bars">` +
+      Object.entries(counts).filter(([_, n]) => n > 0).map(([k, n]) => {
+        const pct = Math.round(n / total * 100);
+        return `<div class="pacing-bar-row"><span class="pacing-name">${k}</span><span class="pacing-track"><span class="pacing-fill" style="width:${pct}%"></span></span><span class="pacing-pct">${pct}%</span></div>`;
+      }).join('') + `</div>`;
+  }
+
+  // hero
+  const cover = fm.cover ? resolveImage(fm.cover) : null;
+  const tripName = fm.trip || state.currentTrip;
+  const sub = fm.summary || '';
+  const tags = (fm.tags || []).map(t => `<span class="tag-chip">${escHTML(t)}</span>`).join('');
+  const dateStr = start && end ? `${fmtDate(start)} – ${fmtDate(end)}` : (fm.travelers || '');
+  const travelersStr = fm.travelers ? ` · ${escHTML(fm.travelers)}` : '';
+
+  const hero = cover ? `
+    <div class="dashboard-cover">
+      <img src="${escHTML(cover)}" alt="${escHTML(tripName)}" onerror="this.style.display='none'"/>
+      <div class="dashboard-cover-overlay">
+        <div class="trip-meta">${escHTML(dateStr)}${travelersStr}</div>
+        <h1>${escHTML(tripName)}</h1>
+        ${sub ? `<div class="summary">${escHTML(sub)}</div>` : ''}
+        ${tags ? `<div class="tags">${tags}</div>` : ''}
+      </div>
+    </div>
+  ` : `
+    <div class="dashboard-headline">
+      <div class="trip-meta">${escHTML(dateStr)}${travelersStr}</div>
+      <h1>${escHTML(tripName)}</h1>
+      ${sub ? `<div class="summary">${escHTML(sub)}</div>` : ''}
+      ${tags ? `<div class="tags">${tags}</div>` : ''}
+    </div>
+  `;
+
+  return `
+    <section class="dashboard">
+      ${hero}
+      <div class="dashboard-grid">
+        <div class="dash-card">
+          <div class="dash-label">Countdown</div>
+          ${countdownHTML}
+        </div>
+        <div class="dash-card">
+          <div class="dash-label">Pacing</div>
+          ${pacingHTML}
+        </div>
+        <div class="dash-card dash-map">
+          <div id="overview-map"></div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderTabsBar(tabs) {
+  return `<nav class="tabs-bar">${tabs.map(t => {
+    const cnt = t.isItinerary ? (t.days || []).length : (t.items ? t.items.length : null);
+    const cntHTML = (cnt !== null && cnt > 0) ? `<span class="tab-count">${cnt}</span>` : '';
+    return `<button class="tab-btn ${t.name === state.currentTab ? 'active' : ''}" data-tab="${escHTML(t.name)}">${escHTML(t.name)}${cntHTML}</button>`;
+  }).join('')}</nav>`;
+}
+
+function renderTabContent() {
+  const wrap = $('#tab-content');
+  if (!wrap) return;
+  const sec = state.parsed.sections.find(s => s.name === state.currentTab);
+  if (!sec) { wrap.innerHTML = ''; return; }
+  // Cleanup previous day maps
+  state.dayMaps.forEach(m => m.remove());
+  state.dayMaps.clear();
+
+  if (sec.isItinerary) {
+    wrap.innerHTML = sec.days.map((d, idx) => renderDay(d, idx)).join('');
+    sec.days.forEach((d, idx) => initDayMap(d, idx));
+  } else if (sec.isFreeform) {
+    wrap.innerHTML = `<div class="freeform-content">${sec.html}</div>`;
+  } else if (sec.name === '交通' && sec.items) {
+    wrap.innerHTML = renderTransitGrouped(sec.items);
+    bindCardClicks();
+  } else if (sec.items) {
+    wrap.innerHTML = `<div class="cards-grid">${sec.items.map(it => renderCard(it, sec.name)).join('')}</div>`;
+    bindCardClicks();
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+const TRANSIT_GROUPS = {
+  flight:         { icon: '✈️',  label: '飛機' },
+  train:          { icon: '🚄',  label: '火車' },
+  bus:            { icon: '🚌',  label: '客運 / 巴士' },
+  public_transit: { icon: '🚇',  label: '大眾運輸' },
+  taxi:           { icon: '🚕',  label: '計程車' },
+  car:            { icon: '🚗',  label: '租車' },
+  ferry:          { icon: '🚢',  label: '渡輪' },
+};
+function renderTransitGrouped(items) {
+  const groups = new Map();
+  for (const it of items) {
+    const mode = (it.fields.mode || '').toLowerCase().replace(/[\s-]/g, '_') || 'other';
+    if (!groups.has(mode)) groups.set(mode, []);
+    groups.get(mode).push(it);
+  }
+  const order = ['flight','train','bus','public_transit','taxi','car','ferry','other'];
+  const sortedKeys = [...groups.keys()].sort((a, b) => {
+    const ai = order.indexOf(a), bi = order.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  return sortedKeys.map(mode => {
+    const meta = TRANSIT_GROUPS[mode] || { icon: '•', label: '其他' };
+    const its = groups.get(mode);
+    return `<div class="transit-section">
+      <h3>${meta.icon} ${meta.label}</h3>
+      <div class="cards-grid">${its.map(it => renderCard(it, '交通')).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ----- Card ----- */
+function renderCard(item, sectionName) {
+  const f = item.fields;
+  const tag = f.tag || f.type || null;
+  const subtitle = buildCardSubtitle(item, sectionName);
+  const meta = buildCardMeta(item, sectionName);
+  const notes = f.notes || '';
+  const imageUrl = item.image ? resolveImage(item.image) : null;
+  const imageStyle = imageUrl ? `style="background-image:url('${escHTML(imageUrl)}')"` : '';
+
+  return `
+    <article class="card" data-section="${escHTML(sectionName)}" data-item="${escHTML(item.name)}">
+      <div class="card-image ${!imageUrl ? 'card-image-placeholder' : ''}" ${imageStyle}>
+        ${tag ? `<div class="card-tag">${escHTML(tag)}</div>` : ''}
+        ${!imageUrl ? `<span>無圖片</span>` : ''}
+      </div>
+      <div class="card-body">
+        <div class="card-title">${escHTML(item.name)}</div>
+        ${subtitle ? `<div class="card-subtitle">${subtitle}</div>` : ''}
+        ${meta ? `<div class="card-meta">${meta}</div>` : ''}
+        ${notes ? `<div class="card-notes">${escHTML(notes)}</div>` : ''}
+      </div>
+    </article>
+  `;
+}
+
+function buildCardSubtitle(item, sectionName) {
+  const f = item.fields;
+  if (sectionName === '住宿') {
+    const dates = (f.check_in || f.check_out) ? `${f.check_in || ''} – ${f.check_out || ''}` : '';
+    return [dates, f.address].filter(Boolean).map(escHTML).join(' · ');
+  }
+  if (sectionName === '餐廳') {
+    return [f.recommended].filter(Boolean).map(escHTML).join(' · ');
+  }
+  if (sectionName === '景點') {
+    return [f.duration && `${f.duration}`, f.ticket].filter(Boolean).map(escHTML).join(' · ');
+  }
+  if (sectionName === '交通') {
+    return [f.depart && `▷ ${f.depart}`, f.arrive && `◁ ${f.arrive}`, f.airline || f.operator].filter(Boolean).map(escHTML).join(' · ');
+  }
+  if (sectionName === '票券') {
+    return [f.valid && `Valid: ${f.valid}`].filter(Boolean).map(escHTML).join(' · ');
+  }
+  if (sectionName === '醫療') {
+    return [f.address || f.phone].filter(Boolean).map(escHTML).join(' · ');
+  }
+  return '';
+}
+function buildCardMeta(item, sectionName) {
+  const f = item.fields;
+  const out = [];
+  if (f.price) out.push(`<span class="card-meta-item">💴 ${escHTML(f.price)}</span>`);
+  if (f.price_range) out.push(`<span class="card-meta-item">${escHTML(f.price_range)}</span>`);
+  if (f.duration) out.push(`<span class="card-meta-item">⏱ ${escHTML(f.duration)}</span>`);
+  if (f.phone) out.push(`<span class="card-meta-item">☏ ${escHTML(f.phone)}</span>`);
+  if (f.dietary) out.push(`<span class="card-meta-item">🥗 ${escHTML(f.dietary)}</span>`);
+  return out.join('');
+}
+
+function bindCardClicks() {
+  $$('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      const section = card.dataset.section;
+      const item = card.dataset.item;
+      openItemModal(section, item);
+    });
+  });
+}
+
+/* ----- Day timeline ----- */
+function renderDay(day, idx) {
+  const stopsHTML = day.stops.map((s, i) => renderStop(s, i)).join('');
+  return `
+    <div class="timeline-day">
+      <div class="timeline-day-header">
+        <div>
+          <div class="day-number-label">Day</div>
+          <div class="day-number">${day.dayNumber}</div>
+        </div>
+        <div>
+          <div class="day-date">${fmtDate(day.date)}<span class="day-weekday">${weekdayCN(day.date)}</span></div>
+        </div>
+        <div class="day-stops-count">${day.stops.length} stops</div>
+      </div>
+      <div class="day-grid">
+        <div class="stops-list">${stopsHTML}</div>
+        <div class="day-map" id="day-map-${idx}"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStop(s, idx) {
+  const time = s.timeStart ? `${s.timeStart}${s.timeEnd ? '–' + s.timeEnd : ''}` : '';
+  const ref = s.fields.ref || '';
+  const refDisplay = ref.split(/[:：]/)[0] || '';
+  const next = s.fields.next || '';
+  const notes = s.fields.notes || '';
+  return `
+    <div>
+      <div class="stop-item">
+        <div class="stop-marker">${idx + 1}</div>
+        <div class="stop-card" data-ref="${escHTML(ref)}">
+          ${time ? `<div class="stop-time">${escHTML(time)}</div>` : ''}
+          <div class="stop-name">${escHTML(s.name)}${refDisplay ? `<span class="stop-ref-tag">${escHTML(refDisplay)}</span>` : ''}</div>
+          ${notes ? `<div class="stop-notes">${escHTML(notes)}</div>` : ''}
+        </div>
+      </div>
+      ${next ? `<div class="stop-next">${escHTML(next)}</div>` : ''}
+    </div>
+  `;
+}
+
+/* =========================================================
+   MAPS
+   ========================================================= */
+function tileLayerForTheme() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const url = dark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+  return L.tileLayer(url, {
+    attribution: '&copy; OSM &copy; CARTO',
+    maxZoom: 19,
+    subdomains: 'abcd'
+  });
+}
+
+function parseCoords(s) {
+  if (!s) return null;
+  const m = String(s).match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+  if (!m) return null;
+  return [parseFloat(m[1]), parseFloat(m[2])];
+}
+
+function numberedIcon(n) {
+  return L.divIcon({
+    className: 'numbered-marker',
+    html: String(n),
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
+  });
+}
+
+function initOverviewMap() {
+  const el = document.getElementById('overview-map');
+  if (!el) return;
+  const points = collectAllCoords(state.parsed);
+  if (!points.length) {
+    el.innerHTML = '<div style="padding:1.25rem 1.5rem;color:var(--ink-mute);font-style:italic;font-family:var(--serif-body);">尚無座標可顯示</div>';
+    return;
+  }
+  if (state.overviewMap) state.overviewMap.remove();
+  const map = L.map(el, { zoomControl: false, attributionControl: false }).setView(points[0].coord, 11);
+  tileLayerForTheme().addTo(map);
+  const group = L.featureGroup();
+  points.forEach(p => {
+    L.marker(p.coord).bindPopup(`<strong>${escHTML(p.name)}</strong>${p.section ? `<div>${escHTML(p.section)}</div>` : ''}`).addTo(group);
+  });
+  group.addTo(map);
+  if (points.length > 1) map.fitBounds(group.getBounds().pad(0.15));
+  state.overviewMap = map;
+}
+
+function initDayMap(day, idx) {
+  const el = document.getElementById('day-map-' + idx);
+  if (!el) return;
+  const points = [];
+  day.stops.forEach((s, i) => {
+    const ref = findItemByRef(state.parsed, s.fields.ref);
+    if (ref && ref.item) {
+      const c = parseCoords(ref.item.fields.coordinates);
+      if (c) points.push({ coord: c, name: s.name, idx: i + 1 });
+    }
+  });
+  if (!points.length) {
+    el.innerHTML = '<div style="padding:1rem;color:var(--ink-mute);font-style:italic;font-family:var(--serif-body);text-align:center;display:flex;align-items:center;justify-content:center;height:100%;">本日無地圖座標</div>';
+    return;
+  }
+  const map = L.map(el, { zoomControl: true, attributionControl: false }).setView(points[0].coord, 12);
+  tileLayerForTheme().addTo(map);
+  const group = L.featureGroup();
+  points.forEach(p => {
+    L.marker(p.coord, { icon: numberedIcon(p.idx) })
+      .bindPopup(`<strong>#${p.idx} ${escHTML(p.name)}</strong>`)
+      .addTo(group);
+  });
+  if (points.length > 1) {
+    L.polyline(points.map(p => p.coord), { color: 'var(--accent)', weight: 2, opacity: 0.5, dashArray: '4 6' }).addTo(group);
+  }
+  group.addTo(map);
+  if (points.length > 1) map.fitBounds(group.getBounds().pad(0.2));
+  state.dayMaps.set(idx, map);
+}
+
+function collectAllCoords(parsed) {
+  const out = [];
+  for (const sec of parsed.sections) {
+    if (!sec.items) continue;
+    for (const it of sec.items) {
+      const c = parseCoords(it.fields.coordinates);
+      if (c) out.push({ coord: c, name: it.name, section: sec.name });
+    }
+  }
+  return out;
+}
+
+/* =========================================================
+   IMAGE PATH RESOLUTION
+   ========================================================= */
+function resolveImage(p) {
+  if (!p) return null;
+  if (/^https?:\/\//i.test(p)) return p;
+  // strip leading ./
+  p = p.replace(/^\.\//, '').replace(/^\//, '');
+  // try raw URL first
+  return `${RAW_BASE}/${p}`;
+}
+
+/* =========================================================
+   MODAL
+   ========================================================= */
+function openItemModal(sectionName, itemName) {
+  const sec = state.parsed.sections.find(s => s.name === sectionName);
+  if (!sec || !sec.items) return;
+  const item = sec.items.find(it => it.name === itemName);
+  if (!item) return;
+  $('#modal-content').innerHTML = renderItemModalContent(item, sectionName);
+  $('#modal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Update URL
+  const u = new URL(location.href);
+  u.searchParams.set('item', encodeURIComponent(`${sectionName}:${itemName}`));
+  history.replaceState(null, '', u);
+}
+function closeModal() {
+  $('#modal-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  const u = new URL(location.href);
+  u.searchParams.delete('item');
+  history.replaceState(null, '', u);
+}
+
+const MODAL_FIELD_LABELS = {
+  check_in: 'Check-in', check_out: 'Check-out', address: '地址',
+  coordinates: '座標', google_maps: 'Google Maps', website: '官方網站',
+  booking_url: '訂房 / 預約', booking_ref: '訂位代號', price: '價格',
+  price_range: '價位', tag: '標籤', phone: '電話', notes: '備註',
+  recommended: '推薦', dietary: '飲食', type: '類型', duration: '所需時間',
+  ticket: '票價', valid: '有效期', where_to_buy: '購買地點',
+  mode: '交通類型', airline: '航空公司', operator: '營運商',
+  depart: '出發', arrive: '抵達', pros: '優點', cons: '缺點',
+  ref: '對應項目', next: '下一段',
+};
+const MODAL_HIDDEN_FIELDS = new Set(['notes', 'tag', 'mode']); // shown elsewhere or as buttons
+
+function renderItemModalContent(item, sectionName) {
+  const f = item.fields;
+  const imgs = (item.images || []).map(resolveImage);
+  const hero = imgs.length
+    ? `<img class="modal-image" src="${escHTML(imgs[0])}" alt="${escHTML(item.name)}" onerror="this.style.display='none'"/>`
+    : `<div class="modal-image-placeholder">${escHTML(sectionName)}</div>`;
+
+  // Buttons row
+  const btns = [];
+  const gmapsURL = f.google_maps || (f.coordinates ? gmapsLink(f.coordinates, item.name) : (f.address ? gmapsLink(f.address, item.name) : null));
+  if (gmapsURL) btns.push(`<a class="btn-primary" href="${escHTML(gmapsURL)}" target="_blank" rel="noopener">📍 Google Maps 導航</a>`);
+  if (f.booking_url) btns.push(`<a class="btn-secondary" href="${escHTML(f.booking_url)}" target="_blank" rel="noopener">🎫 預約 / 訂購</a>`);
+  if (f.website) btns.push(`<a class="btn-secondary" href="${escHTML(f.website)}" target="_blank" rel="noopener">🔗 官方網站</a>`);
+  if (f.phone) btns.push(`<a class="btn-secondary" href="tel:${escHTML(f.phone)}">☏ 撥打電話</a>`);
+
+  // Field rows (skip the ones surfaced as buttons / hidden)
+  const skipKeys = new Set(['google_maps', 'booking_url', 'website', ...MODAL_HIDDEN_FIELDS]);
+  const fieldRows = Object.entries(f)
+    .filter(([k, v]) => v && !skipKeys.has(k))
+    .map(([k, v]) => {
+      const label = MODAL_FIELD_LABELS[k] || k;
+      let val = escHTML(v);
+      if (/^https?:\/\//.test(v)) val = `<a href="${escHTML(v)}" target="_blank" rel="noopener">${escHTML(v)}</a>`;
+      return `<div class="modal-field-key">${escHTML(label)}</div><div class="modal-field-value">${val}</div>`;
+    }).join('');
+
+  const subtitle = buildCardSubtitle(item, sectionName);
+
+  return `
+    ${hero}
+    <div class="modal-body">
+      ${f.tag ? `<div class="modal-tag-row"><span class="modal-tag">${escHTML(f.tag)}</span></div>` : ''}
+      <h2 class="modal-title">${escHTML(item.name)}</h2>
+      ${subtitle ? `<div class="modal-subtitle">${subtitle}</div>` : ''}
+      ${f.notes ? `<div class="card-notes" style="margin-bottom:1.25rem;">${escHTML(f.notes)}</div>` : ''}
+      ${btns.length ? `<div class="modal-actions">${btns.join('')}</div>` : ''}
+      ${fieldRows ? `<div class="modal-fields">${fieldRows}</div>` : ''}
+      ${item.descriptionHTML ? `<div class="modal-description">${item.descriptionHTML}</div>` : ''}
+    </div>
+  `;
+}
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
+async function buildSearchIndex() {
+  const idx = [];
+  for (const t of state.tree) {
+    for (const v of t.versions) {
+      try {
+        const md = await loadTripMd(t.trip, v);
+        const p = parseTrip(md);
+        for (const sec of p.sections) {
+          if (!sec.items) continue;
+          for (const it of sec.items) {
+            const tagged = [it.fields.tag, it.fields.recommended, it.fields.dietary, it.fields.notes, it.description].filter(Boolean).join(' ');
+            idx.push({
+              trip: t.trip, version: v, tripName: p.fm.trip || t.trip,
+              section: sec.name, name: it.name,
+              haystack: `${sec.name} ${it.name} ${tagged}`,
+              snippet: (it.fields.notes || it.description.slice(0, 120) || it.fields.recommended || ''),
+            });
+          }
+        }
+      } catch (e) { console.warn('search-index load failed:', t.trip, v, e); }
+    }
+  }
+  state.searchIndex = idx;
+  state.fuse = new Fuse(idx, { keys: ['name', 'haystack'], threshold: 0.4, includeMatches: false, minMatchCharLength: 2 });
+}
+
+function openSearch() {
+  $('#search-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => $('#search-input').focus(), 50);
+  if (!state.fuse) buildSearchIndex();
+}
+function closeSearch() {
+  $('#search-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  $('#search-input').value = '';
+  $('#search-results').innerHTML = '<div class="search-empty">輸入關鍵字開始搜尋</div>';
+}
+function runSearch(q) {
+  if (!state.fuse || !q.trim()) {
+    $('#search-results').innerHTML = '<div class="search-empty">輸入關鍵字開始搜尋</div>';
+    return;
+  }
+  const hits = state.fuse.search(q).slice(0, 30);
+  if (!hits.length) {
+    $('#search-results').innerHTML = '<div class="search-empty">沒有結果</div>';
+    return;
+  }
+  $('#search-results').innerHTML = hits.map(h => {
+    const i = h.item;
+    return `<div class="search-result" data-trip="${escHTML(i.trip)}" data-version="${escHTML(i.version)}" data-section="${escHTML(i.section)}" data-item="${escHTML(i.name)}">
+      <div class="search-result-meta">${escHTML(i.tripName)} · ${escHTML(i.version)} · ${escHTML(i.section)}</div>
+      <div class="search-result-title">${escHTML(i.name)}</div>
+      ${i.snippet ? `<div class="search-result-snippet">${escHTML(i.snippet.slice(0, 120))}</div>` : ''}
+    </div>`;
+  }).join('');
+  $$('.search-result').forEach(el => {
+    el.addEventListener('click', () => {
+      const { trip, version, section, item } = el.dataset;
+      closeSearch();
+      goTo({ trip, version, tab: section, item });
+    });
+  });
+}
+
+/* =========================================================
+   ROUTING
+   ========================================================= */
+function readURL() {
+  const u = new URL(location.href);
+  return {
+    trip: u.searchParams.get('trip') || null,
+    version: u.searchParams.get('v') || null,
+    tab: u.searchParams.get('tab') || null,
+    item: u.searchParams.get('item') ? decodeURIComponent(u.searchParams.get('item')) : null,
+  };
+}
+function writeURL() {
+  const u = new URL(location.href);
+  if (state.currentTrip) u.searchParams.set('trip', state.currentTrip); else u.searchParams.delete('trip');
+  if (state.currentVersion) u.searchParams.set('v', state.currentVersion); else u.searchParams.delete('v');
+  if (state.currentTab) u.searchParams.set('tab', state.currentTab); else u.searchParams.delete('tab');
+  history.replaceState(null, '', u);
+}
+
+async function goTo({ trip, version, tab, item }) {
+  if (trip && trip !== state.currentTrip) {
+    state.currentTrip = trip;
+    const node = state.tree.find(t => t.trip === trip);
+    state.currentVersion = (version && node && node.versions.includes(version)) ? version
+                          : (node ? node.versions[node.versions.length - 1] : null);
+    await loadAndRender();
+  } else if (version && version !== state.currentVersion) {
+    state.currentVersion = version;
+    await loadAndRender();
+  }
+  if (tab) {
+    state.currentTab = tab;
+    render();
+  }
+  populateSelectors();
+  writeURL();
+  if (item) {
+    const m = item.match(/^([^:：]+)[:：]\s*(.+)$/);
+    if (m) openItemModal(m[1].trim(), m[2].trim());
+  }
+}
+
+/* =========================================================
+   BOOTSTRAP
+   ========================================================= */
+async function loadAndRender() {
+  if (!state.currentTrip || !state.currentVersion) return;
+  const root = $('#app');
+  root.innerHTML = `<div class="loading-state"><div class="loading-spinner"></div><p>載入 ${escHTML(state.currentTrip)} / ${escHTML(state.currentVersion)} ...</p></div>`;
+  try {
+    const md = await loadTripMd(state.currentTrip, state.currentVersion);
+    state.parsed = parseTrip(md);
+    render();
+  } catch (e) {
+    root.innerHTML = `<div class="error-state"><div class="error-icon">⚠</div><h2>讀取失敗</h2><p>${escHTML(state.currentTrip)} / ${escHTML(state.currentVersion)}</p><code>${escHTML(e.message)}</code></div>`;
+  }
+}
+
+function populateSelectors() {
+  const tripSel = $('#trip-select');
+  const verSel = $('#version-select');
+  tripSel.innerHTML = state.tree.map(t => `<option value="${escHTML(t.trip)}" ${t.trip === state.currentTrip ? 'selected' : ''}>${escHTML(t.trip)}</option>`).join('');
+  const cur = state.tree.find(t => t.trip === state.currentTrip);
+  verSel.innerHTML = (cur ? cur.versions : []).map(v => `<option value="${escHTML(v)}" ${v === state.currentVersion ? 'selected' : ''}>${escHTML(v)}</option>`).join('');
+}
+
+async function init() {
+  // Theme
+  const savedTheme = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  setTheme(savedTheme);
+
+  // Tree
+  let tree = null;
+  try { tree = await loadTree(); } catch(e) { /* fall through */ }
+
+  if (!tree || !tree.length) {
+    $('#app').innerHTML = `
+      <div class="error-state">
+        <div class="error-icon">⚠</div>
+        <h2>找不到行程</h2>
+        <p>無法從 GitHub 取得行程資料。</p>
+        <code>嘗試的 repo：${escHTML(CONFIG.owner)}/${escHTML(CONFIG.repo)}（${escHTML(CONFIG.branch)} 分支 · ${escHTML(CONFIG.tripsDir)}/ 目錄）
+
+如果路徑不對，請編輯 index.html 上方 CONFIG，或在 HTML 中設置：
+&lt;script&gt;window.TRIP_CONFIG = { owner: 'me', repo: 'my-trips' };&lt;/script&gt;
+（要在主 script 之前）</code>
+      </div>`;
+    return;
+  }
+  state.tree = tree;
+
+  // Initial route
+  const r = readURL();
+  state.currentTrip = (r.trip && tree.find(t => t.trip === r.trip)) ? r.trip : tree[0].trip;
+  const node = tree.find(t => t.trip === state.currentTrip);
+  state.currentVersion = (r.version && node.versions.includes(r.version)) ? r.version
+                        : node.versions[node.versions.length - 1];
+  state.currentTab = r.tab || null;
+
+  populateSelectors();
+  await loadAndRender();
+  if (r.tab) { state.currentTab = r.tab; render(); }
+  if (r.item) {
+    const m = r.item.match(/^([^:：]+)[:：]\s*(.+)$/);
+    if (m) openItemModal(m[1].trim(), m[2].trim());
+  }
+  writeURL();
+}
+
+/* =========================================================
+   THEME
+   ========================================================= */
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('theme', t);
+  $('#theme-icon-light').style.display = t === 'dark' ? 'none' : 'block';
+  $('#theme-icon-dark').style.display  = t === 'dark' ? 'block' : 'none';
+  // Re-init maps if open
+  if (state.parsed) render();
+}
+
+/* =========================================================
+   EVENT WIRING
+   ========================================================= */
+document.addEventListener('click', e => {
+  // Tab clicks
+  const tabBtn = e.target.closest('.tab-btn');
+  if (tabBtn) {
+    state.currentTab = tabBtn.dataset.tab;
+    render();
+    writeURL();
+    return;
+  }
+  // Stop card click → open ref modal
+  const stopCard = e.target.closest('.stop-card');
+  if (stopCard) {
+    const ref = stopCard.dataset.ref;
+    const m = ref && ref.match(/^([^:：]+)[:：]\s*(.+)$/);
+    if (m) {
+      const found = findItemByRef(state.parsed, ref);
+      if (found && found.item) openItemModal(m[1].trim(), m[2].trim());
+    }
+    return;
+  }
+});
+
+// Modal close
+$('#modal-backdrop').addEventListener('click', closeModal);
+$('#modal-close').addEventListener('click', closeModal);
+$('#search-backdrop').addEventListener('click', closeSearch);
+
+// Selectors
+$('#trip-select').addEventListener('change', e => goTo({ trip: e.target.value }));
+$('#version-select').addEventListener('change', e => goTo({ version: e.target.value }));
+
+// Theme
+$('#theme-btn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+// Search
+$('#search-btn').addEventListener('click', openSearch);
+$('#search-input').addEventListener('input', e => runSearch(e.target.value));
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+  if (e.key === 'Escape') {
+    if ($('#search-backdrop').classList.contains('open')) closeSearch();
+    else if ($('#modal-backdrop').classList.contains('open')) closeModal();
+  }
+});
+
+window.addEventListener('popstate', () => {
+  const r = readURL();
+  goTo({ trip: r.trip, version: r.version, tab: r.tab, item: r.item });
+});
+
+/* Kick off */
+init();
+
+</script>
+
+</body>
+</html>
