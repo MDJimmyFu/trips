@@ -2619,7 +2619,7 @@ function renderTabContent() {
   state.dayMaps.clear();
 
   if (sec.isItinerary) {
-    renderItinerary(sec);
+    renderItinerary(sec, wrap);
   } else if (sec.isFreeform) {
     wrap.innerHTML = `<div class="freeform-content">${sec.html}</div>`;
   } else if (sec.name === '交通' && sec.items) {
@@ -2817,8 +2817,9 @@ function pickInitialDayIdx(sec) {
 }
 
 /** Top-level itinerary renderer — branches on the user's preferred view mode. */
-function renderItinerary(sec) {
-  const wrap = $('#section-content');
+function renderItinerary(sec, wrap) {
+  if (!wrap) wrap = $('#tab-content');
+  if (!wrap) return;
   const mode = getViewMode();
   // Build the toggle + container
   wrap.innerHTML = `
