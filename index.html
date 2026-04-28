@@ -1546,6 +1546,29 @@ const $$ = sel => document.querySelectorAll(sel);
 const escHTML = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const slugify = s => String(s).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '');
 
+/**
+ * Image error handlers — exposed on window so they can be referenced from
+ * `onerror` attributes without having to embed JS string literals containing
+ * quotes (which previously broke the HTML attribute parser and caused stray
+ * `';"/>` text to render below cards).
+ */
+window.__handleHeroImageError = function(img) {
+  const section = img.dataset.fallbackSection || '';
+  const div = document.createElement('div');
+  div.className = 'modal-image-placeholder';
+  div.textContent = section;
+  img.replaceWith(div);
+};
+window.__handleCardImageError = function(img) {
+  const wrap = img.parentElement;
+  if (!wrap) return;
+  wrap.classList.add('card-image-placeholder');
+  img.remove();
+  const span = document.createElement('span');
+  span.textContent = '圖片載入失敗';
+  wrap.appendChild(span);
+};
+
 function parseDate(s) {
   if (!s) return null;
   if (s instanceof Date) return s;
@@ -1571,34 +1594,134 @@ function weekdayCN(d) {
  * when the user lands in Google Maps they immediately see what place it is
  * and can star/share/use it normally. Coordinates are last-resort only.
  */
-function buildGmapsURL(item) {
-  if (!item) return null;
-  const f = item.fields || {};
-  // 1. Explicit URL (e.g. from Google Maps share) takes precedence.
-  if (f.google_maps) return f.google_maps;
-  // 2. Build a text query: name (+ address), so the result is unambiguous.
-  const parts = [];
-  if (item.name) parts.push(item.name);
-  if (f.address) parts.push(f.address);
-  // 3. Coordinates only as a last resort, when there is literally no name.
-  if (parts.length === 0 && f.coordinates) parts.push(f.coordinates);
-  if (parts.length === 0) return null;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(' '))}`;
+/**
+ * Google-Maps-friendly airport names. We use whatever Google's local-region
+ * search handles best:
+ *   - East Asia (TW/JP/CN/HK): native script — "桃園機場" / "成田空港" /
+ *     "香港國際機場" — Google Maps in those regions is tuned for the local
+ *     language and matches these reliably.
+ *   - Korea: English ("Incheon Airport") because Hangul characters often
+ *     don't match well from a Mandarin-default Google Maps locale.
+ *   - Everywhere else: English.
+ *
+ * Fallback for any IATA not in this table: `{IATA} Airport` — Google Maps
+ * handles raw IATA codes reasonably well as a last resort.
+ */
+const AIRPORT_NAV = {
+  // Taiwan
+  TPE:'桃園國際機場', TSA:'松山機場', KHH:'高雄國際機場',
+  RMQ:'台中國際機場', TNN:'台南機場', TTT:'台東機場',
+  // Japan
+  NRT:'成田空港', HND:'羽田空港', KIX:'関西空港',
+  ITM:'大阪国際空港', NGO:'中部国際空港', CTS:'新千歳空港',
+  FUK:'福岡空港', OKA:'那覇空港', OSA:'関西空港',
+  // Korea
+  ICN:'Incheon International Airport', GMP:'Gimpo Airport',
+  PUS:'Busan Gimhae Airport', CJU:'Jeju Airport',
+  // China
+  PEK:'北京首都国际机场', PKX:'北京大兴国际机场',
+  PVG:'上海浦东国际机场', SHA:'上海虹桥国际机场',
+  CAN:'广州白云国际机场', SZX:'深圳宝安国际机场',
+  CTU:'成都双流国际机场', HGH:'杭州萧山国际机场',
+  XMN:'厦门高崎国际机场',
+  // HK / Macau
+  HKG:'香港國際機場', MFM:'澳門國際機場',
+  // SE Asia — English
+  BKK:'Suvarnabhumi Airport', DMK:'Don Mueang Airport',
+  HKT:'Phuket Airport', CNX:'Chiang Mai Airport',
+  SIN:'Singapore Changi Airport', KUL:'Kuala Lumpur International Airport',
+  PEN:'Penang Airport', MNL:'Manila Ninoy Aquino Airport',
+  CGK:'Soekarno-Hatta International Airport',
+  DPS:'Bali Ngurah Rai Airport',
+  SGN:'Tan Son Nhat International Airport',
+  HAN:'Hanoi Noi Bai Airport',
+  // India
+  DEL:'Indira Gandhi International Airport', BOM:'Mumbai Airport',
+  BLR:'Bengaluru Airport',
+  // Middle East
+  DXB:'Dubai International Airport', AUH:'Abu Dhabi Airport',
+  DOH:'Hamad International Airport', RUH:'Riyadh Airport', JED:'Jeddah Airport',
+  // Turkey
+  IST:'Istanbul Airport',
+  // Europe — English
+  LHR:'London Heathrow Airport', LGW:'London Gatwick Airport',
+  CDG:'Paris Charles de Gaulle Airport', ORY:'Paris Orly Airport',
+  FRA:'Frankfurt Airport', MUC:'Munich Airport', BER:'Berlin Brandenburg Airport',
+  AMS:'Amsterdam Schiphol Airport',
+  MAD:'Madrid Barajas Airport', BCN:'Barcelona El Prat Airport',
+  FCO:'Rome Fiumicino Airport', MXP:'Milan Malpensa Airport',
+  ZRH:'Zurich Airport', GVA:'Geneva Airport',
+  VIE:'Vienna International Airport',
+  CPH:'Copenhagen Airport', ARN:'Stockholm Arlanda Airport',
+  OSL:'Oslo Gardermoen Airport',
+  HEL:'Helsinki-Vantaa Airport', RVN:'Rovaniemi Airport',
+  LIS:'Lisbon Airport', DUB:'Dublin Airport',
+  // North America
+  JFK:'John F. Kennedy International Airport', EWR:'Newark Liberty International Airport',
+  LGA:'LaGuardia Airport', BOS:'Boston Logan Airport',
+  LAX:'Los Angeles International Airport', SFO:'San Francisco International Airport',
+  SEA:'Seattle-Tacoma International Airport', ORD:'Chicago O\u2019Hare Airport',
+  DFW:'Dallas Fort Worth Airport',
+  YYZ:'Toronto Pearson Airport', YVR:'Vancouver International Airport',
+  // Oceania
+  SYD:'Sydney Kingsford Smith Airport', MEL:'Melbourne Airport',
+  AKL:'Auckland Airport', CHC:'Christchurch Airport',
+};
+function airportNavQuery(iata) {
+  if (!iata) return null;
+  const code = String(iata).toUpperCase();
+  return AIRPORT_NAV[code] || `${code} Airport`;
 }
 
-/** Pick the best Google-Maps query string for an item: name+address > name > coords. */
+/**
+ * Pick the best Google-Maps query string for an item, in priority order:
+ *
+ *   1. `local_name` field (optional) + address — for places where the
+ *      Chinese display name doesn't match the local Google Maps index
+ *      well.  Examples: 鎌倉大仏 (vs Chinese 鎌倉大佛), Sibelius
+ *      Monument (vs Chinese 西貝柳斯紀念碑).
+ *
+ *   2. Item display name + address — what's written in the markdown.
+ *
+ *   3. Coordinates — last-resort fallback so navigation still works
+ *      when there's no usable name. Note that coordinates make Google
+ *      Maps land at a pin without any place name in the title bar,
+ *      which is why we prefer names whenever available — it makes the
+ *      destination identifiable when shared / opened later.
+ */
 function pickGmapsQuery(item) {
   if (!item) return null;
   const f = item.fields || {};
+  // 1. Optional explicit local-language name.
+  if (f.local_name) {
+    return f.address ? `${f.local_name} ${f.address}` : f.local_name;
+  }
+  // 2. Display name + address.
   const parts = [];
   if (item.name) parts.push(item.name);
   if (f.address) parts.push(f.address);
   if (parts.length) return parts.join(' ');
+  // 3. Coordinates only when nothing nameable is available.
   if (f.coordinates) {
     const c = parseCoords(f.coordinates);
     if (c) return `${c[0]},${c[1]}`;
   }
   return null;
+}
+
+/**
+ * Single-place Google Maps URL (used by the modal "Google Maps 導航" button).
+ * Same priority as `pickGmapsQuery`, with one extra:
+ *   0. `google_maps` field — if the user pasted a real Google Maps share URL,
+ *      use it verbatim (preserves the exact place ID and any view settings).
+ */
+function buildGmapsURL(item) {
+  if (!item) return null;
+  const f = item.fields || {};
+  if (f.google_maps) return f.google_maps;
+  const q = pickGmapsQuery(item);
+  if (!q) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
 /** Resolve a `ref` like "住宿:Hotel X" to the actual item object, or null. */
@@ -1623,14 +1746,51 @@ function inferTravelMode(nextStr) {
   return 'transit'; // sensible default for city travel
 }
 
+/**
+ * Pick the Google-Maps query string for a stop, given its role:
+ *   - 'origin'      = directions FROM this stop
+ *   - 'destination' = directions TO this stop
+ *
+ * For stops that ref a flight item, picking the right airport is non-trivial.
+ * The same flight is often referenced by *two* stops in the same trip:
+ *   "抵達成田機場 13:00"  (arrived at NRT — wants ARRIVE airport)
+ *   "前往羽田機場 16:00"  (heading to HND for departure — wants DEPART airport)
+ * Both stops point to the same flight item.  We can't tell which is which
+ * from the ref alone, so we compare the stop's clock time to the flight's
+ * scheduled depart/arrive times:
+ *   - stop time ≤ depart time              → at DEPART airport
+ *   - stop time ≥ arrive time (same-day)   → at ARRIVE airport
+ *   - otherwise (mid-flight / no times)    → fall back to role-based default
+ */
+function pickStopQuery(stop, role) {
+  const item = resolveRefItem(stop?.fields?.ref);
+  if (item) {
+    const flight = parseFlightInfo(item);
+    if (flight && flight.fromCode && flight.toCode) {
+      const stopTime = stop?.timeStart || '';
+      let useDepart = (role === 'destination'); // default: dest=before flight, origin=after
+      if (stopTime && flight.departTime && flight.arriveTime) {
+        if (stopTime <= flight.departTime) {
+          useDepart = true;                           // pre-departure
+        } else if (!flight.crossesDate && stopTime >= flight.arriveTime) {
+          useDepart = false;                          // post-arrival, same-day flight
+        }
+        // else: between depart and arrive (or unclear due to cross-date) — keep role default
+      }
+      const iata = useDepart ? flight.fromCode : flight.toCode;
+      return airportNavQuery(iata);
+    }
+    const q = pickGmapsQuery(item);
+    if (q) return q;
+  }
+  return stop?.name || null;
+}
+
 /** Build a Google Maps Directions URL between two stops, or null if not enough info. */
 function buildDirectionsURL(fromStop, toStop) {
   if (!fromStop || !toStop) return null;
-  const fromItem = resolveRefItem(fromStop.fields?.ref);
-  const toItem   = resolveRefItem(toStop.fields?.ref);
-  // Fall back to the stop's own name if no ref-resolved item exists.
-  const orig = pickGmapsQuery(fromItem) || fromStop.name;
-  const dest = pickGmapsQuery(toItem)   || toStop.name;
+  const orig = pickStopQuery(fromStop, 'origin');
+  const dest = pickStopQuery(toStop,   'destination');
   if (!orig || !dest) return null;
   const mode = inferTravelMode(fromStop.fields?.next);
   const params = new URLSearchParams({
@@ -2455,14 +2615,10 @@ function renderCard(item, sectionName) {
   const notes = f.notes || '';
   const imageUrl = item.image ? resolveImage(item.image) : null;
 
-  // Use a real <img> so that broken/expired URLs can fall back gracefully.
-  // onerror swaps the parent into the placeholder state.
-  const imgFallback = `this.remove(); this.parentElement.classList.add('card-image-placeholder'); this.parentElement.insertAdjacentHTML('beforeend', '<span>圖片載入失敗</span>');`;
-
   return `
     <article class="card" data-section="${escHTML(sectionName)}" data-item="${escHTML(item.name)}">
       <div class="card-image ${!imageUrl ? 'card-image-placeholder' : ''}">
-        ${imageUrl ? `<img src="${escHTML(imageUrl)}" alt="${escHTML(item.name)}" loading="lazy" onerror="${imgFallback}"/>` : ''}
+        ${imageUrl ? `<img src="${escHTML(imageUrl)}" alt="${escHTML(item.name)}" loading="lazy" onerror="window.__handleCardImageError(this)"/>` : ''}
         ${tag ? `<div class="card-tag">${escHTML(tag)}</div>` : ''}
         ${!imageUrl ? `<span>無圖片</span>` : ''}
       </div>
@@ -3009,14 +3165,13 @@ function renderItemModalContent(item, sectionName) {
   const f = item.fields;
   const flight = parseFlightInfo(item);
   const imgs = (item.images || []).map(resolveImage);
-  const heroFallback = `this.outerHTML = '<div class=\\'modal-image-placeholder\\'>' + ${JSON.stringify(escHTML(sectionName))} + '<\\/div>';`;
   // For flights with both endpoints known, the hero is a route map (rendered later).
   // Otherwise fall back to the standard image / placeholder hero.
   let hero;
   if (flight && flight.fromAirport && flight.toAirport) {
     hero = `<div class="flight-route-map" id="flight-route-map"></div>`;
   } else if (imgs.length) {
-    hero = `<img class="modal-image" src="${escHTML(imgs[0])}" alt="${escHTML(item.name)}" onerror="${heroFallback}"/>`;
+    hero = `<img class="modal-image" src="${escHTML(imgs[0])}" alt="${escHTML(item.name)}" data-fallback-section="${escHTML(sectionName)}" onerror="window.__handleHeroImageError(this)"/>`;
   } else {
     hero = `<div class="modal-image-placeholder">${escHTML(sectionName)}</div>`;
   }

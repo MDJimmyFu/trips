@@ -121,7 +121,23 @@ optionally an image, then a long-form description in markdown.
 **Common across all item types:**
 - `coordinates` — `lat, lng` (decimal). **Required** if you want the item
   to appear on the daily map.
-- `google_maps` — direct Google Maps URL (used for the navigation button)
+- `local_name` — local-language name of the place. **Strongly recommended
+  for items in non-Chinese-speaking destinations** (Japan, Korea, Finland,
+  France, etc.). Used as the primary query string when generating Google
+  Maps and Directions URLs, so the destination opens with a proper local
+  search hit instead of a Chinese transliteration that may not match.
+  Examples:
+    - 鎌倉大佛 → `local_name: 鎌倉大仏` (Japanese 仏 vs Chinese 佛)
+    - 東京巨蛋 → `local_name: 東京ドーム`
+    - 江之島 → `local_name: 江の島`
+    - 西貝柳斯紀念碑 → `local_name: Sibelius Monument`
+    - 赫爾辛基大教堂 → `local_name: Helsinki Cathedral`
+  Skip when the item name is already in the local language (e.g. an
+  English-named hotel chain in Asia, or a Chinese place name for a
+  Chinese-speaking destination).
+- `google_maps` — direct Google Maps URL (used for the navigation button).
+  Takes precedence over `local_name` when present — paste a real Google
+  Maps share link to lock in the exact place ID.
 - `website` — official website
 - `booking_url` — booking / reservation URL
 - `booking_ref` — confirmation / booking number
@@ -129,6 +145,13 @@ optionally an image, then a long-form description in markdown.
 - `tag` — short label shown on the card (e.g. `必訪`、`雨天備案`)
 - `notes` — short reminder, shown prominently on the card
 - `phone` — phone number (auto-linked to `tel:`)
+
+> **Google Maps URL priority** (used by both the modal "Google Maps 導航"
+> button AND the itinerary directions button):
+> `google_maps URL` > `local_name + address` > `name + address` > `coordinates`.
+> Coordinates are kept as a last-resort fallback because pin-only links
+> are anonymous in Google Maps' search bar — names are easier to recognize
+> when shared, saved, or revisited later.
 
 **Hotel-specific:**
 - `check_in`, `check_out` — `YYYY-MM-DD`
@@ -185,6 +208,39 @@ Oceania), with Chinese city names attached for the ~108 we routinely fly
 through. Coordinates ported from OurAirports public-domain dataset via
 flighty-private. If a flight uses an airport not in the table, the route
 map is silently skipped (the card still renders normally).
+
+**Itinerary directions buttons.** Every stop in `## 行程` that has a `next`
+field gets a small "→" navigation button next to the travel-time text. It
+opens Google Maps Directions with origin/destination pre-filled.
+
+When the **next stop** (or **current stop**) refs a flight item, the site
+needs to choose which airport (depart vs arrive) to use as that endpoint.
+It does this by comparing the **stop's `HH:MM` time** to the flight's
+scheduled `depart` and `arrive` times:
+
+  - Stop time ≤ flight depart time  → at the DEPART airport (going to gate)
+  - Stop time ≥ flight arrive time  → at the ARRIVE airport (just deplaned)
+  - Otherwise                       → role-based fallback
+
+So a stop at `13:00` with `ref: 交通:BR184 TPE-NRT` (where BR184 arrives
+at NRT 12:00) automatically resolves to **NRT** for navigation. A stop
+at `17:30` with `ref: 交通:BR195 NRT-TPE` (depart 20:40) resolves to
+**NRT** as well, but as the departure airport. The same flight item is
+correctly disambiguated by the stop's clock time.
+
+**Practical consequence**: in `## 行程`, you don't need a separate "go to
+airport" item or special syntax. Just reference the flight from both the
+"前往機場" stop and the "抵達機場" stop using the same `ref`, and put
+sensible `timeStart` values on each. The site figures out the rest.
+
+**Airport names sent to Google Maps** are picked from a built-in
+`AIRPORT_NAV` table that uses the local-language name where Google Maps
+matches it best:
+  - East Asia (TW/JP/CN/HK): native script — "桃園國際機場", "成田空港",
+    "羽田空港", "関西空港", "香港國際機場"
+  - Korea / Europe / Americas / Oceania: English names —
+    "Incheon International Airport", "Helsinki-Vantaa Airport"
+  - Unknown IATAs: fallback to "{IATA} Airport"
 
 **Medical-specific:**
 - `type` — `緊急聯絡`、`國際診所`、`藥局`、etc.
