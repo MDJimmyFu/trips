@@ -2427,6 +2427,82 @@ async function loadTripMd(trip, version) {
   throw lastErr;
 }
 
+/**
+ * Quick-parse just the YAML frontmatter from a markdown blob without
+ * walking the whole body — used during init to pick a smart default trip.
+ */
+function quickParseFrontmatter(md) {
+  if (!md.startsWith('---')) return {};
+  const end = md.indexOf('\n---', 3);
+  if (end < 0) return {};
+  const yaml = md.slice(3, end);
+  const fm = {};
+  for (const line of yaml.split('\n')) {
+    const m = line.match(/^([\w_]+)\s*:\s*(.*?)\s*$/);
+    if (m) fm[m[1]] = m[2];
+  }
+  return fm;
+}
+
+/**
+ * For each trip in the tree, fetch its latest version's frontmatter in
+ * parallel and attach `startDate` / `endDate` Date objects.  Trips with
+ * unparseable dates simply lack those fields (handled gracefully later).
+ */
+async function enrichTreeWithDates(tree) {
+  await Promise.all(tree.map(async (t) => {
+    const latest = t.versions[t.versions.length - 1];
+    if (!latest) return;
+    try {
+      const md = await loadTripMd(t.trip, latest);
+      const fm = quickParseFrontmatter(md);
+      const sd = parseDate(fm.start_date);
+      const ed = parseDate(fm.end_date);
+      if (sd) t.startDate = sd;
+      if (ed) t.endDate = ed;
+    } catch (e) {
+      console.warn(`Couldn't load frontmatter for ${t.trip}:`, e.message);
+    }
+  }));
+}
+
+/**
+ * Smart default trip selection:
+ *   1. Trip currently in progress (today is between start_date and end_date)
+ *   2. Next upcoming trip (start_date is in the future, closest to today)
+ *   3. Most recently ended trip (end_date is in the past, closest to today)
+ *   4. Last in alphabetical order (final fallback for trips with no dates)
+ */
+function pickDefaultTrip(tree) {
+  if (!tree || !tree.length) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dated = tree.filter(t => t.startDate && t.endDate);
+  if (!dated.length) return tree[tree.length - 1].trip; // alphabetical-last as proxy for "newest"
+
+  // (1) In progress
+  const inProgress = dated.find(t => {
+    const s = new Date(t.startDate); s.setHours(0,0,0,0);
+    const e = new Date(t.endDate);   e.setHours(0,0,0,0);
+    return today >= s && today <= e;
+  });
+  if (inProgress) return inProgress.trip;
+
+  // (2) Next upcoming — closest future startDate
+  const upcoming = dated
+    .filter(t => t.startDate > today)
+    .sort((a, b) => a.startDate - b.startDate);
+  if (upcoming.length) return upcoming[0].trip;
+
+  // (3) Most recently ended — closest past endDate
+  const past = dated
+    .filter(t => t.endDate < today)
+    .sort((a, b) => b.endDate - a.endDate);
+  if (past.length) return past[0].trip;
+
+  // (4) Alphabetical-last fallback
+  return tree[tree.length - 1].trip;
+}
+
 /* =========================================================
    MARKDOWN PARSER (custom for our schema)
    ========================================================= */
@@ -3730,9 +3806,16 @@ async function init() {
   }
   state.tree = tree;
 
+  // Enrich tree with start/end dates so we can pick a smart default trip.
+  // We only need the frontmatter of each trip's last version, parsed in
+  // parallel, so this is cheap (1 fetch per trip, all concurrent).
+  await enrichTreeWithDates(tree);
+
   // Initial route
   const r = readURL();
-  state.currentTrip = (r.trip && tree.find(t => t.trip === r.trip)) ? r.trip : tree[0].trip;
+  state.currentTrip = (r.trip && tree.find(t => t.trip === r.trip))
+    ? r.trip
+    : pickDefaultTrip(tree);
   const node = tree.find(t => t.trip === state.currentTrip);
   state.currentVersion = (r.version && node.versions.includes(r.version)) ? r.version
                         : node.versions[node.versions.length - 1];
