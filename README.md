@@ -56,40 +56,44 @@ window.TRIP_CONFIG = {
   repo: 'my-trips',
   branch: 'main',                  // 預設 main
   tripsDir: 'trips',               // 預設 trips
-  aeroDataBoxKey: 'YOUR_KEY',      // 選填：航班即時狀態 (推薦，見下方)
-  aviationStackKey: 'YOUR_KEY',    // 選填：fallback
 };
 </script>
 ```
 
 放在現有 `<script src="https://cdn.jsdelivr.net/...">` 那群之後、最後那個 `<script>` 之前即可。
 
+> ⚠️ **不要**在 `TRIP_CONFIG` 裡放 API key。GitHub Pages 部署的網站是公開的，任何人都看得到 source。API key 應該透過下面 ⚙ 設定面板存進瀏覽器 localStorage。
+
 ### 航班即時狀態（選用）
 
-每張機票卡片在 modal 內**預設都有**一個「🛫 即時航班狀態」按鈕，點擊會跳到 FlightAware 對應航班頁面，免註冊、免 API key、永遠可用。
+每張機票卡片在 modal 內**預設都有**一個「🛫 即時航班狀態」按鈕，點擊會跳到 FlightAware 對應航班頁面（自動把 IATA 轉成 ICAO callsign，例如 BR184→EVA184、AY0533→FIN0533），免註冊、免 API key、永遠可用。
 
-如果想讓即時狀態（航班 ETA / 延誤分鐘 / 登機口 / 航廈 / 機型 / 即時飛機位置）**直接內嵌在頁面上**，並讓地圖上的航線會根據狀態變色（飛行中橙、預定青、降落灰、取消紅）甚至加上即時飛機 icon，可以從以下兩個 API 任選或同時設定：
+如果想讓即時狀態（航班 ETA / 延誤分鐘 / 登機口 / 航廈 / 機型 / 即時飛機位置）**直接內嵌在頁面上**，並讓地圖上的航線會根據狀態變色（飛行中橙、預定青、降落灰、取消紅）甚至加上即時飛機 icon，可以申請 AeroDataBox 或 AviationStack 的免費 API key。
 
-**AeroDataBox（推薦）**
+#### API key 該放哪？
 
-[RapidAPI](https://rapidapi.com/aedbx-aedbx/api/aerodatabox) 註冊 → 訂閱 BASIC 免費方案。
+GitHub Secrets **不適用**這個場景 — 它只給 GitHub Actions（伺服端）用。trip-site 是純靜態 HTML，所有 fetch 從你瀏覽器發出；瀏覽器看得到的東西其他訪客也看得到。把 key 寫進 `TRIP_CONFIG`、寫進 source code、用 GitHub Action 在 build 時注入，最後都會出現在 deployed HTML。
 
-優點：
+**正確做法**：點右上角 ⚙ 圖示 → 把 key 貼進去 → 儲存。Key 只存在你瀏覽器的 `localStorage`，不會 commit 到 repo、不會出現在 deployed HTML。換瀏覽器 / 換裝置時要重新輸入一次（這正是 key 不擴散的證據）。
+
+> 規則：絕對不要把 API key 放進 source code。同樣道理也適用 ntfy.sh topic、未來任何敏感字串。
+
+#### AeroDataBox（推薦）
+
+[RapidAPI 註冊](https://rapidapi.com/aedbx-aedbx/api/aerodatabox) → 訂閱 BASIC 免費方案 → 在 ⚙ 設定面板貼進 RapidAPI key。
+
 - **每天 100 次**（vs AviationStack 每月 100 次，60× 額度）
 - **HTTPS 原生支援**（GitHub Pages HTTPS 站點不會混合內容錯誤）
 - 資料豐富：機型、出發/抵達航廈、登機口、行李轉盤、code-share 標記、即時飛機位置（lat/lon/heading）
 
-把 RapidAPI key 填到 `aeroDataBoxKey` 欄位即可。
+#### AviationStack（備援）
 
-**AviationStack（備援）**
+[aviationstack.com](https://aviationstack.com/) 註冊 → ⚙ 設定面板貼進。
 
-[aviationstack.com](https://aviationstack.com/) 註冊免費方案。
-
-注意：
 - 免費方案僅支援 HTTP（非 HTTPS）。如果你的站開了 HTTPS，瀏覽器會封鎖混合內容請求。解法：升級付費方案（key 開頭加 `paid_` 前綴自動切 HTTPS），或設定 AeroDataBox 取代它。
-- 每月只有 100 次，個人多趟旅程容易吃完。
+- 每月只有 100 次。
 
-**通用機制**
+#### 通用機制
 
 - 兩個 key 都設定時，AeroDataBox 優先；它失敗或沒資料才 fallback 到 AviationStack。
 - 為節省 quota，僅在航班日期 ±2 天內才實際查詢；其餘時候顯示「日期超出範圍」。
