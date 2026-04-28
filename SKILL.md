@@ -149,10 +149,42 @@ optionally an image, then a long-form description in markdown.
 - `where_to_buy`
 
 **Transit-specific:**
-- `mode` — `flight` | `train` | `bus` | `public_transit` | `taxi` | `car`
-  (controls the icon: ✈️ 🚄 🚌 🚇 🚕 🚗)
+- `mode` — `flight` | `train` | `bus` | `public_transit` | `taxi` | `car` | `ferry`
+  (controls the icon: ✈️ 🚄 🚌 🚇 🚕 🚗 🚢)
 - `airline` / `operator`
-- `depart`, `arrive` — `YYYY-MM-DD HH:MM 機場/站名`
+- `depart`, `arrive` — `YYYY-MM-DD HH:MM 城市 IATA` for flights
+  (anything else for trains/buses)
+
+**Flight items get special "boarding pass" rendering.** When `mode: flight`:
+- The card is rendered as a boarding-pass style block (large IATA codes,
+  airline + flight number, dashed route line with airplane icon).
+- The modal hero is replaced with a great-circle route map between the
+  two airports (Leaflet polyline + IATA-tagged dots).
+- A "🛫 即時航班狀態" button auto-links to FlightAware
+  (`https://flightaware.com/live/flight/{flight_no}`) — no API key needed.
+- The flight number is auto-extracted from `airline` or item name with the
+  pattern `[A-Z]{2}\d{2,4}` (e.g. `BR184`, `JL048`, `AY0533`).
+- The IATA codes are auto-extracted as the **last** 3-uppercase-letter
+  token in `depart` / `arrive` (so put the city name first, IATA at the end).
+
+Example of a well-formed flight item:
+```markdown
+### BR184 TPE-NRT
+- **mode**: flight
+- **airline**: 長榮航空 BR184
+- **depart**: 2026-01-24 07:55 桃園 TPE
+- **arrive**: 2026-01-24 12:00 成田 NRT
+- **booking_ref**: DTHBFW
+- **tag**: 已出票
+- **notes**: 抵達後請至 B1 領取 N'EX 車票
+```
+
+The site has a built-in airport database covering ~160 IATA codes
+(Taiwan/East Asia/SE Asia/India/Middle East/Turkey/Europe/North America/
+Oceania), with Chinese city names attached for the ~108 we routinely fly
+through. Coordinates ported from OurAirports public-domain dataset via
+flighty-private. If a flight uses an airport not in the table, the route
+map is silently skipped (the card still renders normally).
 
 **Medical-specific:**
 - `type` — `緊急聯絡`、`國際診所`、`藥局`、etc.
@@ -162,11 +194,33 @@ optionally an image, then a long-form description in markdown.
 support for new fields.
 
 ### Image
-Place the markdown image after the field block, before the description:
+Place the markdown image after the field block, before the description.
+**Two image sources are supported:**
+
+**Option A — repo-relative path** (recommended for stability):
 ```markdown
 ![](images/{trip-slug}/saimi.jpg)
 ```
-Multiple images allowed; the first is used as the card thumbnail.
+Path is from the repo root. The image needs to actually exist at that path
+in the repo. Best for photos you own or want to keep permanent.
+
+**Option B — external HTTP(S) URL** (good for quick prototyping):
+```markdown
+![](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Tokyo_Station.jpg/800px-Tokyo_Station.jpg)
+```
+Any `http://` or `https://` URL works. The site renders it directly.
+
+**Source recommendations** (most stable to least):
+1. Wikipedia / Wikimedia (`upload.wikimedia.org`) — extremely stable
+2. Official websites (hotel chains, attraction sites)
+3. Booking.com (`cf.bstatic.com`) — stable for hotels
+4. Travel content sites (`gltjp.com`, `tripadvisor.com`)
+5. Google cache (`encrypted-tbn0.gstatic.com`, `lh*.googleusercontent.com`)
+   — convenient but **may expire**; replace with stable sources later
+
+Multiple images allowed; the first is used as the card thumbnail. If an
+image fails to load, the card automatically shows a "圖片載入失敗"
+fallback.
 
 ### Long-form description
 Anything below the image is rendered as standard markdown (paragraphs,

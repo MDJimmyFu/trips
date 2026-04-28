@@ -441,9 +441,14 @@ main {
   width: 100%;
   height: 180px;
   background: var(--bg-soft);
-  background-size: cover;
-  background-position: center;
   position: relative;
+  overflow: hidden;
+}
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .card-image-placeholder {
   display: flex;
@@ -453,6 +458,10 @@ main {
   font-family: var(--serif);
   font-style: italic;
   font-size: 0.9rem;
+}
+.card-image-placeholder span {
+  position: relative;
+  z-index: 1;
 }
 .card-tag {
   position: absolute;
@@ -694,6 +703,232 @@ main {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ===== FLIGHT BOARDING-PASS CARD ===== */
+.flight-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.flight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-soft);
+}
+.flight-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding-bottom: 0.6rem;
+  border-bottom: 1px dashed var(--line);
+}
+.flight-card-header .flight-airline-name { font-family: var(--sans); letter-spacing: 0.02em; }
+.flight-card-header .flight-no {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+}
+.flight-route-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.85rem;
+  align-items: center;
+}
+.flight-endpoint { text-align: center; }
+.flight-endpoint .iata {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+.flight-endpoint .city {
+  font-family: var(--serif-body);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+.flight-endpoint .time {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin-top: 0.45rem;
+  font-weight: 500;
+}
+.flight-endpoint .time .next-day-mark {
+  font-size: 0.7em;
+  color: var(--ink-mute);
+  vertical-align: super;
+  margin-left: 0.15rem;
+}
+.flight-path {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 80px;
+}
+.flight-path .path-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--accent-soft), var(--accent), var(--accent-soft));
+  position: relative;
+}
+.flight-path .path-line::before, .flight-path .path-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateY(-50%);
+}
+.flight-path .path-line::before { left: -3px; }
+.flight-path .path-line::after  { right: -3px; }
+.flight-path .path-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  padding: 0 0.5rem;
+  font-size: 1.05rem;
+  color: var(--accent);
+  line-height: 1;
+}
+.flight-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--ink-mute);
+  font-family: var(--sans);
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--line);
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.flight-card-footer .flight-tag {
+  background: var(--bg-soft);
+  color: var(--accent);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+.flight-card-footer .flight-notes {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-family: var(--serif-body);
+  font-size: 0.85rem;
+  flex-basis: 100%;
+}
+
+/* ===== FLIGHT ROUTE MAP IN MODAL ===== */
+.flight-route-map {
+  height: 220px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--line);
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+.flight-route-map .leaflet-container { height: 100%; }
+
+/* IATA-code airport label on flight maps */
+.flight-airport-label {
+  background: var(--bg-card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+
+/* Animated marching-ants dash for active (airborne) flight arc */
+.flight-arc-active {
+  stroke-dasharray: 8 4;
+  animation: flight-dash 1.2s linear infinite;
+}
+@keyframes flight-dash {
+  to { stroke-dashoffset: -12; }
+}
+
+/* Pulsing plane icon for live position marker */
+.flight-plane-icon {
+  font-size: 18px;
+  color: #f59e0b;
+  filter: drop-shadow(0 0 6px #f59e0b);
+  animation: flight-pulse 2s ease-in-out infinite;
+  display: inline-block;
+}
+@keyframes flight-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px #f59e0b); }
+  50%      { filter: drop-shadow(0 0 10px #f59e0b); }
+}
+
+/* Live status block in modal */
+.flight-status-card {
+  margin: 1rem 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.flight-status-card .status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.flight-status-card .status-pill.scheduled { background: var(--bg-card); color: var(--ink-mute); border: 1px solid var(--line); }
+.flight-status-card .status-pill.active    { background: #1F3A2D; color: #FAF6EE; }
+.flight-status-card .status-pill.landed    { background: var(--gold); color: #FFF; }
+.flight-status-card .status-pill.delayed   { background: var(--accent); color: #FAF6EE; }
+.flight-status-card .status-pill.cancelled { background: #555; color: #FFF; }
+.flight-status-card .status-loading {
+  font-family: var(--serif-body);
+  font-style: italic;
+  color: var(--ink-mute);
+}
+.flight-status-card .status-detail {
+  flex: 1;
+  min-width: 200px;
+  color: var(--ink-soft);
+}
+.flight-status-card .status-detail strong { color: var(--ink); font-family: var(--mono); }
 
 /* ===== FREE-FORM SECTIONS (備案 / 語言) ===== */
 .freeform-content {
@@ -1185,6 +1420,222 @@ function buildGmapsURL(item) {
 }
 
 /* =========================================================
+   FLIGHTS  (airport DB, great-circle paths, flight parsing)
+   Airport coordinates ported from flighty-private's OurAirports dataset;
+   Chinese city names supplied for the airports we routinely fly through.
+   ========================================================= */
+const AIRPORT_COORDS = {
+  // Taiwan
+  TPE:[25.0777,121.2334], TSA:[25.0694,121.5523], KHH:[22.5771,120.3506],
+  RMQ:[24.2647,120.6212], TNN:[22.9503,120.2058], TTT:[22.7549,121.1016],
+  HUN:[24.0239,121.6175],
+  // Japan
+  NRT:[35.7647,140.3864], HND:[35.5494,139.7798], KIX:[34.4272,135.2440],
+  ITM:[34.7855,135.4382], NGO:[34.8583,136.8047], CTS:[42.7752,141.6922],
+  FUK:[33.5853,130.4511], OKA:[26.1958,127.6461], OSA:[34.4272,135.2440],
+  // Korea
+  ICN:[37.4602,126.4407], GMP:[37.5583,126.7914], PUS:[35.1795,128.9382],
+  CJU:[33.5113,126.4930],
+  // China
+  PEK:[40.0799,116.6031], PKX:[39.5090,116.4104], PVG:[31.1443,121.8083],
+  SHA:[31.1979,121.3366], CAN:[23.3924,113.2988], SZX:[22.6393,113.8108],
+  CTU:[30.5785,103.9469], XIY:[34.4471,108.7522], WUH:[30.7838,114.2081],
+  NKG:[31.7420,118.8620], HGH:[30.2295,120.4339], TAO:[36.2661,120.3747],
+  XMN:[24.5440,118.1277], CSX:[28.1892,113.2199], KMG:[24.9924,102.7433],
+  URC:[43.9071,87.4742],  HRB:[45.6235,126.2500], SHE:[41.6398,123.4834],
+  DLC:[38.9657,121.5386], TNA:[36.8572,117.2159],
+  // HK / Macau
+  HKG:[22.3080,113.9185], MFM:[22.1496,113.5916],
+  // SE Asia
+  BKK:[13.6811,100.7475], DMK:[13.9126,100.6067], HKT:[8.1132,98.3169],
+  CNX:[18.7667,98.9626],
+  SIN:[1.3502,103.9940],  KUL:[2.7456,101.7099],  PEN:[5.2976,100.2769],
+  LGK:[6.3297,99.7287],
+  MNL:[14.5086,121.0194], CEB:[10.3075,123.9789], DVO:[7.1255,125.6458],
+  CGK:[-6.1256,106.6558], DPS:[-8.7482,115.1672], SUB:[-7.3797,112.7876],
+  JOG:[-7.7900,110.4317],
+  SGN:[10.8188,106.6520], HAN:[21.2212,105.8072], DAD:[16.0439,108.1993],
+  BKI:[5.9373,116.0511],  KCH:[1.4847,110.3415],  RGN:[16.9073,96.1332],
+  // India
+  DEL:[28.5562,77.1000], BOM:[19.0896,72.8656], BLR:[13.1986,77.7066],
+  MAA:[12.9900,80.1693], HYD:[17.2313,78.4298], CCU:[22.6547,88.4467],
+  // Middle East
+  DXB:[25.2532,55.3657], AUH:[24.4330,54.6511], SHJ:[25.3286,55.5136],
+  DOH:[25.2611,51.6138], BAH:[26.2708,50.6336], KWI:[29.2266,47.9689],
+  AMM:[31.7226,35.9932], BEY:[33.8209,35.4884], RUH:[24.9576,46.6988],
+  JED:[21.6796,39.1565], TLV:[32.0114,34.8867], MCT:[23.5933,58.2844],
+  // Turkey
+  IST:[41.2753,28.7519], SAW:[40.8985,29.3092], ESB:[40.1281,32.9951],
+  AYT:[36.8987,30.8005],
+  // Europe
+  LHR:[51.4700,-0.4543], LGW:[51.1537,-0.1821], MAN:[53.3537,-2.2750],
+  EDI:[55.9500,-3.3725],
+  CDG:[49.0097,2.5479],  ORY:[48.7233,2.3794],  NCE:[43.6584,7.2159],
+  LYS:[45.7256,5.0811],
+  FRA:[50.0379,8.5622],  MUC:[48.3538,11.7861], BER:[52.3667,13.5033],
+  HAM:[53.6304,9.9882],
+  AMS:[52.3086,4.7639],  BRU:[50.9014,4.4844],
+  MAD:[40.4719,-3.5626], BCN:[41.2971,2.0785],  VLC:[39.4893,-0.4816],
+  PMI:[39.5517,2.7388],
+  FCO:[41.8003,12.2389], MXP:[45.6301,8.7231],  VCE:[45.5053,12.3519],
+  NAP:[40.8860,14.2908],
+  ZRH:[47.4647,8.5492],  GVA:[46.2381,6.1089],
+  VIE:[48.1103,16.5697], PRG:[50.1008,14.2600], BUD:[47.4298,19.2611],
+  WAW:[52.1657,20.9671],
+  CPH:[55.6180,12.6561], ARN:[59.6519,17.9186], OSL:[60.1939,11.1004],
+  HEL:[60.3172,24.9633], RVN:[66.5648,25.8304],
+  ATH:[37.9364,23.9445], LIS:[38.7813,-9.1359], OPO:[41.2481,-8.6814],
+  DUB:[53.4213,-6.2701],
+  SVO:[55.9726,37.4146], DME:[55.4088,37.9063], LED:[59.8003,30.2625],
+  // North America
+  JFK:[40.6413,-73.7781], EWR:[40.6895,-74.1745], LGA:[40.7772,-73.8726],
+  BOS:[42.3656,-71.0096],
+  LAX:[33.9425,-118.408], SFO:[37.6213,-122.379], SJC:[37.3626,-121.929],
+  SEA:[47.4502,-122.309],
+  ORD:[41.9742,-87.9073], MDW:[41.7868,-87.7522], DFW:[32.8998,-97.0403],
+  IAH:[29.9902,-95.3368],
+  ATL:[33.6367,-84.4281], MIA:[25.7959,-80.2870], MCO:[28.4312,-81.3081],
+  TPA:[27.9755,-82.5332],
+  DEN:[39.8561,-104.674], PHX:[33.4373,-112.008], LAS:[36.0840,-115.154],
+  SLC:[40.7884,-111.978],
+  IAD:[38.9531,-77.4565], DCA:[38.8521,-77.0377], BWI:[39.1754,-76.6683],
+  YYZ:[43.6777,-79.6248], YVR:[49.1967,-123.182], YUL:[45.4706,-73.7408],
+  YYC:[51.1315,-114.011],
+  MEX:[19.4363,-99.0721],
+  // Oceania
+  SYD:[-33.9399,151.175], MEL:[-37.6690,144.841], BNE:[-27.3842,153.118],
+  PER:[-31.9403,115.967], ADL:[-34.9450,138.531],
+  AKL:[-37.0082,174.785], CHC:[-43.4894,172.532],
+};
+
+/** Chinese city/area name for the airports we routinely use. */
+const AIRPORT_CITIES = {
+  TPE:'桃園', TSA:'松山', KHH:'高雄', RMQ:'台中', TNN:'台南', TTT:'台東',
+  NRT:'成田', HND:'羽田', KIX:'關西', ITM:'伊丹', NGO:'名古屋',
+  CTS:'新千歲', FUK:'福岡', OKA:'沖繩', OSA:'大阪',
+  ICN:'首爾仁川', GMP:'首爾金浦', PUS:'釜山', CJU:'濟州',
+  HKG:'香港', MFM:'澳門',
+  PEK:'北京首都', PKX:'北京大興', PVG:'上海浦東', SHA:'上海虹橋',
+  CAN:'廣州', SZX:'深圳', CTU:'成都', XIY:'西安', NKG:'南京',
+  HGH:'杭州', XMN:'廈門', KMG:'昆明',
+  BKK:'曼谷', DMK:'曼谷廊曼', HKT:'普吉', CNX:'清邁',
+  SIN:'新加坡', KUL:'吉隆坡', PEN:'檳城',
+  MNL:'馬尼拉', CEB:'宿霧',
+  CGK:'雅加達', DPS:'峇里', SGN:'胡志明市', HAN:'河內',
+  DEL:'德里', BOM:'孟買', BLR:'班加羅爾',
+  DXB:'杜拜', AUH:'阿布達比', DOH:'多哈', RUH:'利雅德', JED:'吉達',
+  IST:'伊斯坦堡',
+  LHR:'倫敦希斯洛', LGW:'倫敦蓋威克',
+  CDG:'巴黎戴高樂', ORY:'巴黎奧利',
+  FRA:'法蘭克福', MUC:'慕尼黑', BER:'柏林',
+  AMS:'阿姆斯特丹', BRU:'布魯塞爾',
+  MAD:'馬德里', BCN:'巴塞隆納',
+  FCO:'羅馬', MXP:'米蘭', VCE:'威尼斯',
+  ZRH:'蘇黎世', GVA:'日內瓦',
+  VIE:'維也納', PRG:'布拉格', WAW:'華沙',
+  CPH:'哥本哈根', ARN:'斯德哥爾摩', OSL:'奧斯陸',
+  HEL:'赫爾辛基', RVN:'羅瓦涅米',
+  LIS:'里斯本', DUB:'都柏林',
+  JFK:'紐約 JFK', EWR:'紐約 EWR', LGA:'紐約 LGA', BOS:'波士頓',
+  LAX:'洛杉磯', SFO:'舊金山', SJC:'聖荷西', SEA:'西雅圖',
+  ORD:'芝加哥歐海爾', DFW:'達拉斯', IAH:'休士頓',
+  ATL:'亞特蘭大', MIA:'邁阿密', DEN:'丹佛', LAS:'拉斯維加斯',
+  IAD:'華盛頓杜勒斯', DCA:'華盛頓國家',
+  YYZ:'多倫多', YVR:'溫哥華', YUL:'蒙特婁',
+  SYD:'雪梨', MEL:'墨爾本', BNE:'布里斯本', PER:'伯斯',
+  AKL:'奧克蘭', CHC:'基督城',
+};
+
+/** Look up an airport by IATA code. Returns { lat, lon, city, code } or null. */
+function lookupAirport(iata) {
+  if (!iata) return null;
+  const code = String(iata).toUpperCase();
+  const co = AIRPORT_COORDS[code];
+  if (!co) return null;
+  return { lat: co[0], lon: co[1], city: AIRPORT_CITIES[code] || '', code };
+}
+
+/** Pull the last 3-letter uppercase token in a string (likely IATA code). */
+function lastIATA(s) {
+  if (!s) return null;
+  const matches = [...String(s).matchAll(/\b([A-Z]{3})\b/g)];
+  return matches.length ? matches[matches.length - 1][1] : null;
+}
+
+/** Pull a flight number like BR184, NH853, JL048, AY0533. */
+function extractFlightNumber(s) {
+  if (!s) return null;
+  const m = String(s).match(/\b([A-Z]{2}\d{2,4})\b/);
+  return m ? m[1] : null;
+}
+
+/** Parse an HH:MM time and an optional YYYY-MM-DD date out of a string. */
+function parseDateTime(s) {
+  if (!s) return { date: null, time: null };
+  const dm = String(s).match(/(\d{4}-\d{2}-\d{2})/);
+  const tm = String(s).match(/(\d{1,2}:\d{2})/);
+  return { date: dm ? dm[1] : null, time: tm ? tm[1] : null };
+}
+
+/** Extract structured flight info from a transit item.  Returns null if not a flight. */
+function parseFlightInfo(item) {
+  if (!item || !item.fields || (item.fields.mode || '').toLowerCase() !== 'flight') return null;
+  const f = item.fields;
+  const fromCode = lastIATA(f.depart);
+  const toCode   = lastIATA(f.arrive);
+  const flightNo = extractFlightNumber(f.airline) || extractFlightNumber(item.name);
+  const dep = parseDateTime(f.depart);
+  const arr = parseDateTime(f.arrive);
+  const fromAp = lookupAirport(fromCode);
+  const toAp   = lookupAirport(toCode);
+  return {
+    flightNo,
+    airline: f.airline || '',
+    fromCode, toCode,
+    fromAirport: fromAp,
+    toAirport:   toAp,
+    fromCity: fromAp ? fromAp.city : '',
+    toCity:   toAp   ? toAp.city   : '',
+    departDate: dep.date,
+    departTime: dep.time,
+    arriveDate: arr.date,
+    arriveTime: arr.time,
+    crossesDate: dep.date && arr.date && dep.date !== arr.date,
+  };
+}
+
+/** Sample N points along the great-circle between two [lat,lon] points. */
+function greatCircle(a, b, n = 64) {
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+  const lat1 = toRad(a[0]), lon1 = toRad(a[1]);
+  const lat2 = toRad(b[0]), lon2 = toRad(b[1]);
+  const d = 2 * Math.asin(Math.sqrt(
+    Math.sin((lat2 - lat1) / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2 - lon1) / 2) ** 2
+  ));
+  if (d === 0) return [a, b];
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const f = i / n;
+    const A = Math.sin((1 - f) * d) / Math.sin(d);
+    const B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
+    const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
+    const z = A * Math.sin(lat1)                  + B * Math.sin(lat2);
+    const lat = Math.atan2(z, Math.sqrt(x*x + y*y));
+    const lon = Math.atan2(y, x);
+    out.push([toDeg(lat), toDeg(lon)]);
+  }
+  return out;
+}
+
+/** Get the current --accent CSS variable as a usable color. */
+function getAccentColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#C9573A';
+}
+
+/* =========================================================
    GITHUB / FETCH LAYER
    ========================================================= */
 async function fetchJSON(url) {
@@ -1587,11 +2038,60 @@ function renderTransitGrouped(items) {
   return sortedKeys.map(mode => {
     const meta = TRANSIT_GROUPS[mode] || { icon: '•', label: '其他' };
     const its = groups.get(mode);
+    const renderer = (mode === 'flight') ? renderFlightCard : (it => renderCard(it, '交通'));
     return `<div class="transit-section">
       <h3>${meta.icon} ${meta.label}</h3>
-      <div class="cards-grid">${its.map(it => renderCard(it, '交通')).join('')}</div>
+      <div class="cards-grid">${its.map(renderer).join('')}</div>
     </div>`;
   }).join('');
+}
+
+/** Boarding-pass style card for flight items in the 交通 tab. */
+function renderFlightCard(item) {
+  const info = parseFlightInfo(item);
+  if (!info) return renderCard(item, '交通'); // fallback to generic card
+  const f = item.fields;
+  const fromIATA = info.fromCode || '???';
+  const toIATA   = info.toCode   || '???';
+  const fromCity = info.fromCity || '';
+  const toCity   = info.toCity   || '';
+  const depTime  = info.departTime || '';
+  const arrTime  = info.arriveTime || '';
+  const nextDay  = info.crossesDate ? '<span class="next-day-mark">+1</span>' : '';
+  const dateLabel = info.departDate || '';
+  const tag = f.tag || '';
+  const notes = f.notes || '';
+  const airline = info.airline || '';
+  const flightNo = info.flightNo || '';
+  return `
+    <article class="card flight-card" data-section="交通" data-item="${escHTML(item.name)}">
+      <div class="flight-card-header">
+        <span class="flight-airline-name">${escHTML(airline)}</span>
+        <span class="flight-no">${escHTML(flightNo)}</span>
+      </div>
+      <div class="flight-route-row">
+        <div class="flight-endpoint">
+          <div class="iata">${escHTML(fromIATA)}</div>
+          <div class="city">${escHTML(fromCity)}</div>
+          <div class="time">${escHTML(depTime)}</div>
+        </div>
+        <div class="flight-path">
+          <div class="path-line"></div>
+          <div class="path-icon">✈</div>
+        </div>
+        <div class="flight-endpoint">
+          <div class="iata">${escHTML(toIATA)}</div>
+          <div class="city">${escHTML(toCity)}</div>
+          <div class="time">${escHTML(arrTime)}${nextDay}</div>
+        </div>
+      </div>
+      <div class="flight-card-footer">
+        <span>${escHTML(dateLabel)}</span>
+        ${tag ? `<span class="flight-tag">${escHTML(tag)}</span>` : ''}
+        ${notes ? `<span class="flight-notes">${escHTML(notes)}</span>` : ''}
+      </div>
+    </article>
+  `;
 }
 
 /* ----- Card ----- */
@@ -1602,11 +2102,15 @@ function renderCard(item, sectionName) {
   const meta = buildCardMeta(item, sectionName);
   const notes = f.notes || '';
   const imageUrl = item.image ? resolveImage(item.image) : null;
-  const imageStyle = imageUrl ? `style="background-image:url('${escHTML(imageUrl)}')"` : '';
+
+  // Use a real <img> so that broken/expired URLs can fall back gracefully.
+  // onerror swaps the parent into the placeholder state.
+  const imgFallback = `this.remove(); this.parentElement.classList.add('card-image-placeholder'); this.parentElement.insertAdjacentHTML('beforeend', '<span>圖片載入失敗</span>');`;
 
   return `
     <article class="card" data-section="${escHTML(sectionName)}" data-item="${escHTML(item.name)}">
-      <div class="card-image ${!imageUrl ? 'card-image-placeholder' : ''}" ${imageStyle}>
+      <div class="card-image ${!imageUrl ? 'card-image-placeholder' : ''}">
+        ${imageUrl ? `<img src="${escHTML(imageUrl)}" alt="${escHTML(item.name)}" loading="lazy" onerror="${imgFallback}"/>` : ''}
         ${tag ? `<div class="card-tag">${escHTML(tag)}</div>` : ''}
         ${!imageUrl ? `<span>無圖片</span>` : ''}
       </div>
@@ -1802,6 +2306,287 @@ function collectAllCoords(parsed) {
   return out;
 }
 
+/** Render a flight route map: airport markers + great-circle path. */
+/**
+ * Render a flight route map with airport markers + great-circle path.
+ *
+ * Visual style ported from MDJimmyFu/flighty-private:
+ *   - Glow effect (wide opacity-0.2 line behind a thin core line)
+ *   - Status-coded colors:
+ *       active    → orange  (#f59e0b) + animated dashes + live plane marker
+ *       scheduled → cyan    (#22d3ee) (default for upcoming flights)
+ *       landed    → gray    (#4a5c78)
+ *       cancelled → red     (#f43f5e)
+ *
+ * Returns { update(opts) } so loadFlightStatus() can re-color the arc and
+ * drop a plane marker after live data arrives. Without API data the arc
+ * defaults to "scheduled" cyan.
+ */
+const FLIGHT_STATUS_COLORS = {
+  active:    { color: '#f59e0b', opacity: 0.90, dashed: false, animated: true  },
+  scheduled: { color: '#22d3ee', opacity: 0.65, dashed: true,  animated: false },
+  landed:    { color: '#4a5c78', opacity: 0.45, dashed: false, animated: false },
+  cancelled: { color: '#f43f5e', opacity: 0.30, dashed: false, animated: false },
+  diverted:  { color: '#f59e0b', opacity: 0.65, dashed: true,  animated: false },
+};
+
+function initFlightRouteMap(elId, flight) {
+  const el = document.getElementById(elId);
+  if (!el || !flight.fromAirport || !flight.toAirport) return null;
+  const from = [flight.fromAirport.lat, flight.fromAirport.lon];
+  const to   = [flight.toAirport.lat,   flight.toAirport.lon];
+
+  const map = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView(from, 3);
+  tileLayerForTheme().addTo(map);
+
+  // Airport dots with permanent IATA labels
+  const mkAirportMarker = (latlng, code) => {
+    const marker = L.circleMarker(latlng, {
+      radius: 5,
+      fillColor: '#22d3ee',
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 1,
+    });
+    marker.bindTooltip(code, {
+      permanent: true,
+      direction: 'top',
+      offset: [0, -6],
+      className: 'flight-airport-label',
+    });
+    return marker;
+  };
+  const fromMarker = mkAirportMarker(from, flight.fromCode);
+  const toMarker   = mkAirportMarker(to,   flight.toCode);
+  fromMarker.addTo(map);
+  toMarker.addTo(map);
+
+  const points = greatCircle(from, to, 80);
+
+  // Mutable layers — replaced on update()
+  let glowLayer = null;
+  let coreLayer = null;
+  let planeLayer = null;
+
+  function drawArc(status) {
+    if (glowLayer) { map.removeLayer(glowLayer); glowLayer = null; }
+    if (coreLayer) { map.removeLayer(coreLayer); coreLayer = null; }
+    const s = FLIGHT_STATUS_COLORS[status] || FLIGHT_STATUS_COLORS.scheduled;
+    // Wide glow underneath
+    glowLayer = L.polyline(points, {
+      color: s.color, weight: 6, opacity: s.opacity * 0.22,
+      smoothFactor: 1,
+    }).addTo(map);
+    // Core line on top
+    coreLayer = L.polyline(points, {
+      color: s.color, weight: 1.8, opacity: s.opacity,
+      dashArray: s.dashed ? '6 4' : null,
+      smoothFactor: 1,
+      className: s.animated ? 'flight-arc-active' : '',
+    }).addTo(map);
+  }
+
+  function setLivePosition(latlon, heading) {
+    if (planeLayer) { map.removeLayer(planeLayer); planeLayer = null; }
+    if (!latlon) return;
+    const icon = L.divIcon({
+      html: `<div class="flight-plane-icon" style="transform:rotate(${heading || 0}deg)">✈</div>`,
+      className: '',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+    planeLayer = L.marker(latlon, { icon, zIndexOffset: 1000 }).addTo(map);
+  }
+
+  // Initial render = scheduled (cyan dashed) until live data arrives
+  drawArc('scheduled');
+
+  const group = L.featureGroup([fromMarker, toMarker, coreLayer]);
+  map.fitBounds(group.getBounds().pad(0.25));
+  setTimeout(() => map.invalidateSize(), 80);
+
+  const api = {
+    update({ status, livePosition, heading }) {
+      if (status) drawArc(status);
+      if (status === 'active') setLivePosition(livePosition, heading);
+      else setLivePosition(null);
+    },
+  };
+  // Expose so loadFlightStatus() can call back after async fetch
+  window._currentFlightMap = api;
+  return api;
+}
+
+/* =========================================================
+   LIVE FLIGHT STATUS
+   AeroDataBox (RapidAPI) is preferred — 100/day free, HTTPS, lots of fields.
+   AviationStack is the fallback — 100/month free, HTTP-only on free tier.
+   Both are configured via window.TRIP_CONFIG; both are optional.
+   The FlightAware deep-link button works without any API key.
+   ========================================================= */
+const STATUS_LABEL_ZH = {
+  scheduled: '預定起飛', active: '飛行中', landed: '已抵達',
+  cancelled: '已取消', diverted: '改降', incident: '異常',
+};
+
+/** AeroDataBox — flights/number/{IATA}/{date} */
+async function fetchAeroDataBox(flightNo, date, key) {
+  const clean = flightNo.replace(/\s+/g, '').toUpperCase();
+  const r = await fetch(
+    `https://aerodatabox.p.rapidapi.com/flights/number/${encodeURIComponent(clean)}/${encodeURIComponent(date)}`,
+    { headers: { 'X-RapidAPI-Key': key, 'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com' } }
+  );
+  if (r.status === 404) return [];
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.message || `AeroDataBox HTTP ${r.status}`);
+  }
+  const data = await r.json();
+  if (!Array.isArray(data)) {
+    if (data && data.message) throw new Error(`AeroDataBox: ${data.message}`);
+    return [];
+  }
+  // Normalize to a common shape
+  const adbStatus = s => ({ EnRoute:'active', Departed:'active', Landed:'landed',
+                            Cancelled:'cancelled', Diverted:'diverted',
+                            Expected:'scheduled' })[s] || 'scheduled';
+  return data.map(f => {
+    const dep = f.departure || {}, arr = f.arrival || {};
+    const live = f.location || null;
+    return {
+      _source: 'aerodatabox',
+      status:   adbStatus(f.status),
+      airline:  f.airline?.name || '',
+      aircraft: f.aircraft?.model || '',
+      depGate:  dep.gate || '',
+      depTerm:  dep.terminal || '',
+      arrGate:  arr.gate || '',
+      arrTerm:  arr.terminal || '',
+      depTimeSched: dep.scheduledTimeLocal || dep.scheduledTime?.local || dep.scheduledTimeUtc,
+      depTimeAct:   dep.actualTimeLocal    || dep.actualTime?.local    || dep.actualTimeUtc,
+      arrTimeSched: arr.scheduledTimeLocal || arr.scheduledTime?.local || arr.scheduledTimeUtc,
+      arrTimeAct:   arr.actualTimeLocal    || arr.actualTime?.local    || arr.actualTimeUtc,
+      depDelay: dep.delay || null,
+      arrDelay: arr.delay || null,
+      live: live ? { lat: live.lat, lon: live.lon, heading: f.heading || 0 } : null,
+    };
+  });
+}
+
+/** AviationStack — flights?flight_iata=...&flight_date=... */
+async function fetchAviationStack(flightNo, date, key) {
+  const protocol = key.startsWith('paid_') ? 'https' : 'http';
+  const r = await fetch(
+    `${protocol}://api.aviationstack.com/v1/flights?access_key=${encodeURIComponent(key)}&flight_iata=${encodeURIComponent(flightNo)}${date ? `&flight_date=${date}` : ''}`
+  );
+  if (!r.ok) throw new Error(`AviationStack HTTP ${r.status}`);
+  const data = await r.json();
+  if (data.error) throw new Error(data.error.message || 'AviationStack error');
+  const list = (data.data || []);
+  return list.map(f => ({
+    _source: 'aviationstack',
+    status: (f.flight_status || 'scheduled').toLowerCase(),
+    airline: f.airline?.name || '',
+    aircraft: f.aircraft?.iata || '',
+    depGate: f.departure?.gate || '',
+    depTerm: f.departure?.terminal || '',
+    arrGate: f.arrival?.gate || '',
+    arrTerm: f.arrival?.terminal || '',
+    depTimeSched: f.departure?.scheduled,
+    depTimeAct:   f.departure?.actual || f.departure?.estimated,
+    arrTimeSched: f.arrival?.scheduled,
+    arrTimeAct:   f.arrival?.actual || f.arrival?.estimated,
+    depDelay: f.departure?.delay || null,
+    arrDelay: f.arrival?.delay || null,
+    live: (f.live && f.live.latitude) ? { lat: f.live.latitude, lon: f.live.longitude, heading: f.live.direction || 0 } : null,
+  }));
+}
+
+/**
+ * Fetch live status and update the modal status card + flight route map.
+ * Tries AeroDataBox first if its key is set, otherwise AviationStack.
+ * Skips queries for flights >2 days from today.
+ */
+async function loadFlightStatus(flight) {
+  const card = document.getElementById('flight-status-card');
+  if (!card || !flight.flightNo) return;
+  const cfg = window.TRIP_CONFIG || {};
+  const adbKey = cfg.aeroDataBoxKey;
+  const asKey  = cfg.aviationStackKey;
+  if (!adbKey && !asKey) return;
+
+  // Date-window guard
+  if (flight.departDate) {
+    const depD = new Date(flight.departDate);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days = Math.abs((depD - today) / 86400000);
+    if (days > 2) {
+      card.innerHTML = `<div class="status-loading">航班日期超出即時資料範圍（僅查詢 ±2 天內）</div>`;
+      return;
+    }
+  }
+
+  let result = null, err = null, source = null;
+  try {
+    if (adbKey) {
+      const list = await fetchAeroDataBox(flight.flightNo, flight.departDate, adbKey);
+      result = list[0] || null;
+      source = 'AeroDataBox';
+    }
+    if (!result && asKey) {
+      const list = await fetchAviationStack(flight.flightNo, flight.departDate, asKey);
+      result = list[0] || null;
+      source = 'AviationStack';
+    }
+  } catch (e) { err = e; }
+
+  if (err) {
+    console.warn('flight status:', err);
+    card.innerHTML = `<div class="status-loading">查詢失敗（${escHTML(String(err.message || err))}）</div>`;
+    return;
+  }
+  if (!result) {
+    card.innerHTML = `<div class="status-loading">查無航班資料</div>`;
+    return;
+  }
+
+  // Status pill
+  const status = result.status || 'scheduled';
+  const cls = ['active','landed','cancelled','scheduled','diverted'].includes(status) ? status : 'scheduled';
+  const label = STATUS_LABEL_ZH[status] || status;
+
+  // Times
+  const fmt = t => t ? new Date(t).toLocaleString('zh-TW', { hour:'2-digit', minute:'2-digit', month:'numeric', day:'numeric' }) : '—';
+  const delayHtml = (n) => (n != null && n > 0) ? `<strong style="color:var(--accent)">+${n}分</strong>` : '';
+  const lines = [];
+  if (result.depTimeSched || result.depTimeAct) {
+    lines.push(`${escHTML(flight.fromCode)} 出發 <strong>${fmt(result.depTimeAct || result.depTimeSched)}</strong> ${delayHtml(result.depDelay)}`);
+  }
+  if (result.arrTimeSched || result.arrTimeAct) {
+    lines.push(`${escHTML(flight.toCode)} 抵達 <strong>${fmt(result.arrTimeAct || result.arrTimeSched)}</strong> ${delayHtml(result.arrDelay)}`);
+  }
+  const gateInfo = [];
+  if (result.depTerm || result.depGate) gateInfo.push(`出發 T${escHTML(result.depTerm || '')} 登機口 ${escHTML(result.depGate || '—')}`);
+  if (result.arrTerm || result.arrGate) gateInfo.push(`抵達 T${escHTML(result.arrTerm || '')} 行李 ${escHTML(result.arrGate || '—')}`);
+  if (gateInfo.length) lines.push(gateInfo.join(' / '));
+  if (result.aircraft) lines.push(`機型 <strong>${escHTML(result.aircraft)}</strong>`);
+
+  card.innerHTML = `
+    <span class="status-pill ${cls}">${escHTML(label)}</span>
+    <div class="status-detail">${lines.join('<br>')}</div>
+    <div style="font-family:var(--mono);font-size:0.65rem;color:var(--ink-mute);letter-spacing:0.06em;text-transform:uppercase;width:100%;text-align:right;">${escHTML(source)}</div>
+  `;
+
+  // Tell the route map about the new status (and live position if active)
+  if (window._currentFlightMap && window._currentFlightMap.update) {
+    window._currentFlightMap.update({
+      status,
+      livePosition: result.live ? [result.live.lat, result.live.lon] : null,
+      heading: result.live ? result.live.heading : 0,
+    });
+  }
+}
+
 /* =========================================================
    IMAGE PATH RESOLUTION
    ========================================================= */
@@ -1825,6 +2610,17 @@ function openItemModal(sectionName, itemName) {
   $('#modal-content').innerHTML = renderItemModalContent(item, sectionName);
   $('#modal-backdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // For flight items, defer map init until the modal is in the DOM.
+  const flight = parseFlightInfo(item);
+  if (flight && flight.fromAirport && flight.toAirport) {
+    // Use rAF + small timeout so Leaflet sees the actual element size.
+    setTimeout(() => initFlightRouteMap('flight-route-map', flight), 50);
+    // Optionally fetch live status if any API key is configured.
+    const cfg = window.TRIP_CONFIG || {};
+    if (cfg.aeroDataBoxKey || cfg.aviationStackKey) {
+      loadFlightStatus(flight);
+    }
+  }
   // Update URL
   const u = new URL(location.href);
   u.searchParams.set('item', encodeURIComponent(`${sectionName}:${itemName}`));
@@ -1853,10 +2649,19 @@ const MODAL_HIDDEN_FIELDS = new Set(['notes', 'tag', 'mode']); // shown elsewher
 
 function renderItemModalContent(item, sectionName) {
   const f = item.fields;
+  const flight = parseFlightInfo(item);
   const imgs = (item.images || []).map(resolveImage);
-  const hero = imgs.length
-    ? `<img class="modal-image" src="${escHTML(imgs[0])}" alt="${escHTML(item.name)}" onerror="this.style.display='none'"/>`
-    : `<div class="modal-image-placeholder">${escHTML(sectionName)}</div>`;
+  const heroFallback = `this.outerHTML = '<div class=\\'modal-image-placeholder\\'>' + ${JSON.stringify(escHTML(sectionName))} + '<\\/div>';`;
+  // For flights with both endpoints known, the hero is a route map (rendered later).
+  // Otherwise fall back to the standard image / placeholder hero.
+  let hero;
+  if (flight && flight.fromAirport && flight.toAirport) {
+    hero = `<div class="flight-route-map" id="flight-route-map"></div>`;
+  } else if (imgs.length) {
+    hero = `<img class="modal-image" src="${escHTML(imgs[0])}" alt="${escHTML(item.name)}" onerror="${heroFallback}"/>`;
+  } else {
+    hero = `<div class="modal-image-placeholder">${escHTML(sectionName)}</div>`;
+  }
 
   // Buttons row
   const btns = [];
@@ -1865,6 +2670,17 @@ function renderItemModalContent(item, sectionName) {
   if (f.booking_url) btns.push(`<a class="btn-secondary" href="${escHTML(f.booking_url)}" target="_blank" rel="noopener">🎫 預約 / 訂購</a>`);
   if (f.website) btns.push(`<a class="btn-secondary" href="${escHTML(f.website)}" target="_blank" rel="noopener">🔗 官方網站</a>`);
   if (f.phone) btns.push(`<a class="btn-secondary" href="tel:${escHTML(f.phone)}">☏ 撥打電話</a>`);
+  // Flight-specific: deep link to FlightAware for live status (no API key needed)
+  if (flight && flight.flightNo) {
+    btns.unshift(`<a class="btn-primary" href="https://flightaware.com/live/flight/${escHTML(flight.flightNo)}" target="_blank" rel="noopener">🛫 即時航班狀態</a>`);
+  }
+
+  // Live-status placeholder (filled in async if any API key is set)
+  const cfg = window.TRIP_CONFIG || {};
+  const hasFlightApi = cfg.aeroDataBoxKey || cfg.aviationStackKey;
+  const statusBlock = (flight && flight.flightNo && hasFlightApi)
+    ? `<div class="flight-status-card" id="flight-status-card"><div class="status-loading">查詢即時航班狀態中…</div></div>`
+    : '';
 
   // Field rows (skip the ones surfaced as buttons / hidden)
   const skipKeys = new Set(['google_maps', 'booking_url', 'website', ...MODAL_HIDDEN_FIELDS]);
@@ -1886,6 +2702,7 @@ function renderItemModalContent(item, sectionName) {
       <h2 class="modal-title">${escHTML(item.name)}</h2>
       ${subtitle ? `<div class="modal-subtitle">${subtitle}</div>` : ''}
       ${f.notes ? `<div class="card-notes" style="margin-bottom:1.25rem;">${escHTML(f.notes)}</div>` : ''}
+      ${statusBlock}
       ${btns.length ? `<div class="modal-actions">${btns.join('')}</div>` : ''}
       ${fieldRows ? `<div class="modal-fields">${fieldRows}</div>` : ''}
       ${item.descriptionHTML ? `<div class="modal-description">${item.descriptionHTML}</div>` : ''}
