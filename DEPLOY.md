@@ -80,7 +80,7 @@ dig NS jimmyfu.dpdns.org +short
    - Project name: `trips-private`
    - Production branch: `main`
    - Framework preset: **None**
-   - Build command: **留空**
+   - Build command: `node scripts/build-manifest.js`
    - Build output directory: `/`
    - Root directory: `/`
 4. Save and Deploy

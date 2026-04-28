@@ -4,6 +4,7 @@
   "private": true,
   "description": "Personal trip planning site (private + public mirror).",
   "scripts": {
+    "build:manifest": "node scripts/build-manifest.js",
     "build:public": "node scripts/redact.js",
     "test:redact": "node scripts/redact.js && echo '\\nFirst 80 lines of redacted Tokyo trip:' && head -80 public/trips/2026-tokyo-romantic/v1.md"
   }

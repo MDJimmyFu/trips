@@ -201,6 +201,19 @@ function main() {
     stats.files++;
   });
 
+  // 4. Generate public/trips/index.json so the frontend can discover trips
+  //    without GitHub API access (local mode on Cloudflare Pages, etc.)
+  const { buildManifest } = require('./build-manifest.js');
+  const publicTripsDir = path.join(OUT, 'trips');
+  if (fs.existsSync(publicTripsDir)) {
+    const manifest = buildManifest(publicTripsDir);
+    fs.writeFileSync(
+      path.join(publicTripsDir, 'index.json'),
+      JSON.stringify(manifest, null, 2) + '\n'
+    );
+    console.log(`  Manifest:           ${manifest.length} trips`);
+  }
+
   console.log(`✓ Done.`);
   console.log(`  Files processed:    ${stats.files}`);
   console.log(`  Lines scanned:      ${stats.lines}`);
