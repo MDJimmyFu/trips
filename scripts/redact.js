@@ -182,6 +182,10 @@ function main() {
   if (fs.existsSync(path.join(ROOT, 'README.md'))) {
     fs.copyFileSync(path.join(ROOT, 'README.md'), path.join(OUT, 'README.md'));
   }
+  // robots.txt — keep the public site equally un-indexable
+  if (fs.existsSync(path.join(ROOT, 'robots.txt'))) {
+    fs.copyFileSync(path.join(ROOT, 'robots.txt'), path.join(OUT, 'robots.txt'));
+  }
 
   // 2. Process & inject banner into index.html
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

@@ -5,6 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>旅誌 · Trip Journal</title>
 
+<!-- ==========================================================
+     Anti-crawl directives — tells well-behaved bots to stay away.
+     This blocks search engines (Google/Bing/Baidu/Yandex/DuckDuckGo)
+     AND major AI training crawlers (OpenAI, Anthropic, Google AI,
+     Common Crawl, Perplexity, ByteDance, etc.).
+
+     Note: This does NOT prevent malicious scrapers from reading
+     the site — that requires server-side auth (Cloudflare Access).
+     But it covers >95% of bots that would actually find this site.
+========================================================== -->
+
+<!-- Universal: don't index, don't follow links, don't archive, don't show snippets -->
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate, max-snippet:-1, max-image-preview:none, max-video-preview:-1">
+
+<!-- Search engine specifics -->
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="slurp" content="noindex, nofollow, noarchive">
+<meta name="duckduckbot" content="noindex, nofollow">
+<meta name="baiduspider" content="noindex, nofollow, noarchive">
+<meta name="yandex" content="noindex, nofollow, noarchive">
+
+<!-- AI training crawlers — opt out of LLM training datasets -->
+<meta name="GPTBot" content="noindex, nofollow">
+<meta name="ChatGPT-User" content="noindex, nofollow">
+<meta name="OAI-SearchBot" content="noindex, nofollow">
+<meta name="ClaudeBot" content="noindex, nofollow">
+<meta name="anthropic-ai" content="noindex, nofollow">
+<meta name="Claude-Web" content="noindex, nofollow">
+<meta name="Google-Extended" content="noindex, nofollow">
+<meta name="CCBot" content="noindex, nofollow">
+<meta name="cohere-ai" content="noindex, nofollow">
+<meta name="PerplexityBot" content="noindex, nofollow">
+<meta name="Perplexity-User" content="noindex, nofollow">
+<meta name="Bytespider" content="noindex, nofollow">
+<meta name="Amazonbot" content="noindex, nofollow">
+<meta name="Applebot" content="noindex, nofollow">
+<meta name="Applebot-Extended" content="noindex, nofollow">
+<meta name="FacebookBot" content="noindex, nofollow">
+<meta name="meta-externalagent" content="noindex, nofollow">
+<meta name="DiffbotSearch" content="noindex, nofollow">
+
+<!-- Don't auto-link via Open Graph / Twitter Card preview crawlers -->
+<meta property="og:robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+
 <!-- Fonts: editorial / travel journal aesthetic -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2820,6 +2866,13 @@ function pickInitialDayIdx(sec) {
 function renderItinerary(sec, wrap) {
   if (!wrap) wrap = $('#tab-content');
   if (!wrap) return;
+  // Defensive: if days array is missing/empty, render nothing useful but
+  // don't throw. (This used to cause "blank itinerary tab" when a trip's
+  // ## 行程 section had no parseable Day headers.)
+  if (!sec.days || !sec.days.length) {
+    wrap.innerHTML = '<div class="freeform-content"><em>此行程目前沒有可顯示的天數（請檢查 ## 行程 是否有 ### Day N — YYYY-MM-DD 格式的標題）。</em></div>';
+    return;
+  }
   const mode = getViewMode();
   // Build the toggle + container
   wrap.innerHTML = `
@@ -2842,11 +2895,19 @@ function renderItinerary(sec, wrap) {
       const m = btn.dataset.mode;
       if (m === getViewMode()) return;
       setViewMode(m);
-      renderItinerary(sec);
+      renderItinerary(sec, wrap);
     });
   });
-  if (mode === 'tabs') renderTabsMode(sec);
-  else renderVerticalMode(sec);
+  try {
+    if (mode === 'tabs') renderTabsMode(sec);
+    else renderVerticalMode(sec);
+  } catch (e) {
+    console.error('Itinerary render error:', e);
+    const body = $('#itinerary-body');
+    if (body) {
+      body.innerHTML = `<div class="freeform-content"><em>行程渲染失敗：${escHTML(String(e.message || e))}。請打開瀏覽器 console 看詳細錯誤。</em></div>`;
+    }
+  }
 }
 
 /** Tabs mode: horizontal day navigator + lazily-rendered active day. */
