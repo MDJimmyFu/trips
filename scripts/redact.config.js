@@ -20,8 +20,10 @@ module.exports = {
    * disappears from any item.
    */
   removeItemFields: [
-    'booking_ref',  // PNR / 票號 / 訂位代號 — most sensitive
-    'phone',        // 個人電話
+    'booking_ref',   // PNR / 票號 / 訂位代號 — most sensitive
+    'phone',         // 個人電話
+    'checkin_qr',    // 自助 check-in QR / 一次性帶 token 的連結
+    'plan',          // 訂房方案名稱（含內部 SKU 字串）
     // Keep: price (it's useful for sharing recommendations),
     //       address (people need it to navigate),
     //       coordinates, local_name (functional),

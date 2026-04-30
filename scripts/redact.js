@@ -26,7 +26,7 @@ const ROOT = process.cwd();
 const OUT  = path.join(ROOT, 'public');
 const config = require(path.join(ROOT, 'scripts/redact.config.js'));
 
-let stats = { files: 0, lines: 0, removed: 0, redacted: 0, sectionsDropped: 0 };
+let stats = { files: 0, lines: 0, removed: 0, redacted: 0, sectionsDropped: 0, blocksDropped: 0 };
 
 /* ---------- filesystem helpers ---------- */
 
@@ -60,6 +60,20 @@ function walkMarkdown(dir, callback) {
 
 /* ---------- redaction logic ---------- */
 
+/**
+ * Drop multi-line blocks wrapped in <!-- redact-start --> ... <!-- redact-end -->.
+ * Both markers (and everything between them, including a trailing newline) are
+ * removed. Markers are HTML comments so they don't render in normal markdown.
+ * Use this for description-body content that the field-level rules can't reach
+ * (e.g. embedded QR images, one-time-token URLs, booking-specific snippets).
+ */
+function dropRedactBlocks(content) {
+  return content.replace(
+    /<!--\s*redact-start\s*-->[\s\S]*?<!--\s*redact-end\s*-->\n?/g,
+    () => { stats.blocksDropped++; return ''; }
+  );
+}
+
 /** Strip leading "HH:MM " or trailing "HH:MM" from a timestamp value, leaving the date+place. */
 function stripTime(value) {
   // Matches: "2026-01-24 07:55 桃園 TPE"  →  "2026-01-24 桃園 TPE"
@@ -88,6 +102,7 @@ function applyPatterns(line) {
  * line is found (these can appear under any item).
  */
 function redactMarkdown(content) {
+  content = dropRedactBlocks(content);
   const lines = content.split('\n');
   const out = [];
   let inFrontmatter = false;
@@ -219,6 +234,7 @@ function main() {
   console.log(`  Lines scanned:      ${stats.lines}`);
   console.log(`  Field lines removed: ${stats.removed}`);
   console.log(`  Sections dropped:   ${stats.sectionsDropped}`);
+  console.log(`  Blocks dropped:     ${stats.blocksDropped}`);
   console.log(`  Pattern matches:    ${stats.redacted}`);
 }
 
