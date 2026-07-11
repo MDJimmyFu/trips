@@ -1,0 +1,38 @@
+[
+  {
+    "trip": "2025-tohoku-oyakou",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-08-austria",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-10-germany",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-finland-aurora",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-tokyo-romantic",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "20260501-osaka",
+    "versions": [
+      "v1"
+    ]
+  }
+]
