@@ -8,7 +8,8 @@
   {
     "trip": "2026-08-austria",
     "versions": [
-      "v1"
+      "v1",
+      "v5"
     ]
   },
   {
@@ -19,6 +20,18 @@
   },
   {
     "trip": "2026-finland-aurora",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-maldives",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-singapore",
     "versions": [
       "v1"
     ]

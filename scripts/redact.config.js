@@ -20,10 +20,17 @@ module.exports = {
    * disappears from any item.
    */
   removeItemFields: [
-    'booking_ref',   // PNR / 票號 / 訂位代號 — most sensitive
-    'phone',         // 個人電話
-    'checkin_qr',    // 自助 check-in QR / 一次性帶 token 的連結
-    'plan',          // 訂房方案名稱（含內部 SKU 字串）
+    'booking_ref',       // PNR / 票號 / 訂位代號 — most sensitive
+    'phone',             // 個人電話
+    'checkin_qr',        // 自助 check-in QR / 一次性帶 token 的連結
+    'plan',              // 訂房方案名稱（含內部 SKU 字串）
+    'pelago_voucher',    // Pelago / GlobalTix 兌換憑證碼
+    'parent_pass',       // Pelago Pass 主訂單 ID
+    'honors_reward_id',  // Hilton Honors reward booking ID
+    'verification_code', // 肯驛 / 車資接送 / SMS 驗證碼
+    'customer_ref',      // 飯店客戶號（如 MVC）
+    'lead',              // 業務 lead ID（如 MVC PohLeng 分配）
+    'passengers',        // 機票乘客姓名（含 FU/CHUNHSIEN、CHEN/YINGSZU）
     // Keep: price (it's useful for sharing recommendations),
     //       address (people need it to navigate),
     //       coordinates, local_name (functional),
@@ -46,7 +53,8 @@ module.exports = {
    * up to the next `## ` are dropped.
    */
   removeSections: [
-    '醫療',  // 個人醫療資訊不對外
+    '醫療',      // 個人醫療資訊不對外
+    '版本紀錄',  // 訂房確認號、rebook 紀錄、會員 # 全部在此分頁——公開版整段拿掉
   ],
 
   /**
@@ -65,10 +73,14 @@ module.exports = {
    * Order matters — earlier patterns run first.
    */
   redactPatterns: [
-    // PNR codes — only when preceded by a context keyword (e.g. "PNR ABC123")
+    // PNR / 訂單 / 客戶 / 會員 confirmation codes — only when preceded by a
+    // context keyword. Examples matched:
+    //   確認號碼 91328927   →   確認號碼 [已遮蔽]
+    //   客戶編號 7738636    →   客戶編號 [已遮蔽]
+    //   PNR ABC123          →   PNR [已遮蔽]
     {
-      name: 'pnr-with-context',
-      re: /(PNR|訂位代號|訂位編號|票號|確認碼|booking ref(?:erence)?)\s*[:：]?\s*[A-Z0-9]{6,}/gi,
+      name: 'code-with-context',
+      re: /(PNR|訂位代號|訂位編號|票號|確認碼|確認號碼|客戶編號|會員編號|訂單編號|booking ref(?:erence)?)\s*[:：]?\s*[A-Z0-9]{6,}/gi,
       replace: (match) => match.replace(/[A-Z0-9]{6,}\s*$/i, '[已遮蔽]'),
     },
     // E-ticket numbers — long digit strings (12+, narrower than before)
@@ -95,6 +107,51 @@ module.exports = {
     {
       name: 'landline',
       re: /\b0\d{1,3}[-\s]\d{3,4}[-\s]\d{3,4}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // Booking / cancellation / member confirmation numbers with # prefix.
+    // Covers Marriott 7-8 digits (e.g. #92484263), Hilton 10 digits
+    // (e.g. #3494389634), 9-digit member IDs (Hilton Diamond #148049729),
+    // Marriott 5-digit cancellation numbers (e.g. #67824060).
+    {
+      name: 'confirmation-with-hash',
+      re: /#\d{7,10}\b/g,
+      replace: '#[已遮蔽]',
+    },
+    // Marriott FNA certificate numbers — printed as `#XXXX1861` (last 4 digits).
+    {
+      name: 'fna-cert',
+      re: /#XXXX\d{4}\b/g,
+      replace: '#[已遮蔽]',
+    },
+    // Marriott Bonvoy account number — printed as `XXXXX8181` (last 4 digits).
+    {
+      name: 'bonvoy-account',
+      re: /XXXXX\d{4}\b/g,
+      replace: 'XXXXX[已遮蔽]',
+    },
+    // Pelago Pass booking IDs (e.g. PG260572ZMBE, PG26058O37XI).
+    {
+      name: 'pelago-pass-id',
+      re: /\bPG\d{4,}[A-Z0-9]{2,}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // GlobalTix voucher codes (e.g. GTCLIKIZ, GTVCV9PR, GT46H2U0).
+    {
+      name: 'globaltix-voucher',
+      re: /\bGT[A-Z0-9]{6,10}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // KKday order numbers (e.g. 26KK276060610).
+    {
+      name: 'kkday-order',
+      re: /\b\d{2}KK\d{9,11}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // 肯驛 / Canlead 接送預約碼 (e.g. F15249204).
+    {
+      name: 'canlead-booking',
+      re: /\bF\d{7,8}\b/g,
       replace: '[已遮蔽]',
     },
   ],
