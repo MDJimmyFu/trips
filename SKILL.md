@@ -86,6 +86,7 @@ this order matches what Jimmy tends to use:
 | `## 醫療`     | Medical (clinics, pharmacies, emergency contacts)|
 | `## 備案`     | Backup plans (rain, fatigue, contingencies)      |
 | `## 語言`     | Useful phrases for the destination               |
+| `## 版本紀錄` | Booking-status log + version-to-version diffs (always LAST tab) |
 
 You may add others (e.g. `## 購物`、`## 溫泉`). They become tabs automatically.
 
@@ -371,6 +372,52 @@ sub-headings as you like:
 - 大盛り — 加大
 ```
 
+## ## 版本紀錄 section (free-form, ALWAYS the LAST tab)
+
+Trip files evolve — bookings get confirmed / rebooked, routes get
+reworked, hotels get swapped when point availability changes. **All that
+history goes into a single `## 版本紀錄` tab at the very end of the
+file** — never sprinkle version-log `##` sections at the top.
+
+**Why not at the top**: the site's tab renderer treats loose top-level
+bullet content in unknown-name `##` sections as empty, so top-of-file
+change-logs render as empty tabs. Even when they render, they push the
+useful tabs (`行程` / `住宿` / …) to the right of the tab bar.
+
+**Structure**: use `### 子節` sub-headings — the site consistently
+renders `### heading + bullet` under any free-form tab (that's how `備案`
+and `語言` also work). Recommended sub-sections:
+
+```markdown
+## 版本紀錄
+
+### 訂房狀態（YYYY-MM-DD 更新）
+
+- ✅ **Hotel A** MM/DD–MM/DD（N 晚）· 點數/現金 · Ref #123 · 免費取消至 MM/DD
+- ✅ **Hotel B** MM/DD–MM/DD · 分兩張訂單:
+    - MM/DD 現金 €X 非退（Ref #A · rebooked, 原 #B 已取消）
+    - MM/DD 點數 X,000 + 稅 €Y（Ref #C）
+- ⚠️ 待補：…
+
+### v{N} 版本演進（vs v{N-1}）
+
+- 為什麼改動：具體原因（點數不足 / 房型無房 / 撞熱門檔期 / 點數 vs 現金
+  ratio 反轉 …）
+- 動線微調：例如「Hbf → 飯店」改成「Wien Mitte CAT → 飯店」
+- 保留 vs 移除的分段
+
+### v{N} 相對 v1 的骨架變動
+
+- 交通模式：v1 自駕 → v{N} 全鐵路
+- 路線骨架：v1 A→B→C → v{N} A→D→B→E
+- 各段飯店 / 天數的高階變化
+```
+
+**When to update**: any time booking status changes materially
+(confirmations, cancellations, rebooks with new refs), or when creating
+a new version file (v{N}.md) — put the `vs v{N-1}` diff in the new file's
+版本紀錄 tab so future readers understand the drift.
+
 ---
 
 ## Hard rules for agents
@@ -397,6 +444,11 @@ sub-headings as you like:
    block, not in the field list.
 8. When updating an existing trip, **read the current file first** so
    you preserve the exact structure and don't drop existing fields.
+9. **Version-log content belongs in `## 版本紀錄` at the END** — never
+   at the top of the file, and never split across multiple ambient `##`
+   sections. Booking confirmations, rebook history, and version-to-
+   version diffs (v5 vs v3, v5 vs v1, …) all go under `### 子節` inside
+   this single tab.
 
 ## Quick template for a new trip
 
@@ -444,4 +496,12 @@ tags: []
 ## 醫療
 ## 備案
 ## 語言
+
+## 版本紀錄
+
+### 訂房狀態（YYYY-MM-DD 更新）
+- ✅ / ⏳ / ⚠️ per-hotel bookings…
+
+### v1 開版
+- 建檔說明
 ```
