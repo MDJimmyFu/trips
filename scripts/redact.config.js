@@ -27,6 +27,7 @@ module.exports = {
     'pelago_voucher',    // Pelago / GlobalTix 兌換憑證碼
     'parent_pass',       // Pelago Pass 主訂單 ID
     'honors_reward_id',  // Hilton Honors reward booking ID
+    'voucher_url',       // ÖBB 「My booking」永久連結（含 UUID token）
     'verification_code', // 肯驛 / 車資接送 / SMS 驗證碼
     'customer_ref',      // 飯店客戶號（如 MVC）
     'lead',              // 業務 lead ID（如 MVC PohLeng 分配）
@@ -152,6 +153,24 @@ module.exports = {
     {
       name: 'canlead-booking',
       re: /\bF\d{7,8}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // ÖBB booking codes (16-digit with spaces, e.g. "0424 6131 0211 1534").
+    {
+      name: 'oebb-booking',
+      re: /\b\d{4}\s\d{4}\s\d{4}\s\d{4}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // ÖBB Customer number (PV + 9 digits, e.g. PV266000454).
+    {
+      name: 'oebb-customer',
+      re: /\bPV\d{9}\b/g,
+      replace: '[已遮蔽]',
+    },
+    // ÖBB voucher/booking UUID links (contain per-order token).
+    {
+      name: 'oebb-voucher-url',
+      re: /https:\/\/shop\.oebbtickets\.at\/en\/ticket\/(?:voucher|offer\/journey|postcheckout)\/[^\s)]+/g,
       replace: '[已遮蔽]',
     },
   ],
