@@ -3918,7 +3918,11 @@ function tileLayerForTheme() {
   return L.tileLayer(url, {
     attribution: '&copy; OSM &copy; CARTO',
     maxZoom: 19,
-    subdomains: 'abcd'
+    subdomains: 'abcd',
+    // CARTO validates this browser-facing key against the page origin.
+    // Set the policy explicitly so browsers and Cloudflare Access consistently
+    // send `https://trip.jimmyfu.dpdns.org/` as the Referer.
+    referrerPolicy: 'origin'
   });
 }
 
