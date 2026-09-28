@@ -3912,9 +3912,12 @@ function renderStop(s, idx, nextStop) {
    ========================================================= */
 function tileLayerForTheme() {
   const dark = document.documentElement.dataset.theme === 'dark';
+  // CARTO requires a basemap key. This browser-facing key is restricted to
+  // trip.jimmyfu.dpdns.org in the CARTO dashboard.
+  const cartoKey = 'cb1_411p_1_f57dbdd431a32b6220b995c3';
   const url = dark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+    ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key=${cartoKey}`
+    : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png?key=${cartoKey}`;
   return L.tileLayer(url, {
     attribution: '&copy; OSM &copy; CARTO',
     maxZoom: 19,
