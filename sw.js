@@ -79,7 +79,7 @@ self.addEventListener('fetch', event => {
     return;
   }
   if (url.origin === self.location.origin) {
-    if (url.pathname.includes('/trips/')) { event.respondWith(networkFirst(req, DATA_CACHE)); return; }
+    if (url.pathname.includes('/trips/') || url.pathname.includes('/images/')) { event.respondWith(networkFirst(req, DATA_CACHE)); return; }
     event.respondWith(networkFirst(req, SHELL_CACHE));
     return;
   }

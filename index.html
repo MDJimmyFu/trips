@@ -4757,6 +4757,16 @@ async function syncOffline({ reloadOnSuccess = false } = {}) {
       cache.put(abs(indexPath), indexRes),
       ...paths.map((p, i) => cache.put(abs(p), responses[i])),
     ]);
+    // Repo-hosted photos referenced by the trips (best effort — a missing
+    // photo must not fail the sync; the card shows its own fallback).
+    const texts = await Promise.all(paths.map((p, i) => cache.match(abs(p)).then(r => r ? r.text() : '')));
+    const imgs = [...new Set(texts.join('\n').match(/images\/[^\s)"']+\.(?:jpe?g|png|webp|gif)/gi) || [])];
+    await Promise.allSettled(imgs.map(async p => {
+      const r = await fetch(`${p}?sync=${bust}`, { redirect: 'manual', credentials: 'same-origin' });
+      if (r.ok && r.type !== 'opaqueredirect' && (r.headers.get('content-type') || '').startsWith('image/')) {
+        await cache.put(abs(p), r);
+      }
+    }));
     try { localStorage.setItem(SYNC_KEY, String(Date.now())); } catch (e) {}
     setSyncState('ok');
     if (reloadOnSuccess) location.reload();
