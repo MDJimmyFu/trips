@@ -202,6 +202,12 @@ function main() {
     fs.copyFileSync(path.join(ROOT, 'robots.txt'), path.join(OUT, 'robots.txt'));
   }
 
+  // PWA files — same offline behaviour on the public mirror
+  for (const f of ['sw.js', 'manifest.webmanifest']) {
+    if (fs.existsSync(path.join(ROOT, f))) fs.copyFileSync(path.join(ROOT, f), path.join(OUT, f));
+  }
+  if (fs.existsSync(path.join(ROOT, 'icons'))) copyRecursive(path.join(ROOT, 'icons'), path.join(OUT, 'icons'));
+
   // 2. Process & inject banner into index.html
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   fs.writeFileSync(path.join(OUT, 'index.html'), injectPublicBanner(html));
