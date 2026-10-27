@@ -1,6 +1,36 @@
 [
   {
-    "trip": "2025-tohoku-oyakou",
+    "trip": "2025-12-tohoku-oyakou-Ginzan",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-01-tokyo-romantic",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-03-finland-aurora",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-05-osaka",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-05-singapore",
+    "versions": [
+      "v1"
+    ]
+  },
+  {
+    "trip": "2026-06-maldives",
     "versions": [
       "v1"
     ]
@@ -22,36 +52,6 @@
   },
   {
     "trip": "2026-12-newzealand",
-    "versions": [
-      "v1"
-    ]
-  },
-  {
-    "trip": "2026-finland-aurora",
-    "versions": [
-      "v1"
-    ]
-  },
-  {
-    "trip": "2026-maldives",
-    "versions": [
-      "v1"
-    ]
-  },
-  {
-    "trip": "2026-singapore",
-    "versions": [
-      "v1"
-    ]
-  },
-  {
-    "trip": "2026-tokyo-romantic",
-    "versions": [
-      "v1"
-    ]
-  },
-  {
-    "trip": "20260501-osaka",
     "versions": [
       "v1"
     ]

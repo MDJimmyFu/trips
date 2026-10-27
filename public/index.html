@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>旅誌 · Trip Journal</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#1F3A2D" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="旅誌" />
 
 <!-- ==========================================================
      Anti-crawl directives — tells well-behaved bots to stay away.
@@ -209,6 +214,16 @@ button.nav-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
 }
 .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
 .icon-btn svg { width: 18px; height: 18px; }
+
+/* Offline sync status — dot colour follows data-state */
+.sync-btn { font-size: 0.8rem; padding: 0.45rem 0.7rem; white-space: nowrap; }
+.sync-btn[hidden] { display: none; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-mute); flex: none; }
+.sync-btn[data-state="ok"] .sync-dot { background: #4C8C5E; }
+.sync-btn[data-state="syncing"] .sync-dot { background: var(--gold); animation: sync-pulse 1s infinite alternate; }
+.sync-btn[data-state="auth"], .sync-btn[data-state="error"] { border-color: var(--accent); color: var(--accent); }
+.sync-btn[data-state="auth"] .sync-dot, .sync-btn[data-state="error"] .sync-dot { background: var(--accent); }
+@keyframes sync-pulse { to { opacity: 0.3; } }
 
 /* ===== MAIN LAYOUT ===== */
 main {
@@ -1578,6 +1593,7 @@ main {
   <div class="site-header-inner">
     <div class="brand">旅誌</div>
     <div class="nav-controls">
+      <button class="nav-btn sync-btn" id="sync-btn" hidden><span class="sync-dot"></span><span id="sync-label"></span></button>
       <select id="trip-select" aria-label="行程"></select>
       <select id="version-select" aria-label="版本"></select>
       <button class="icon-btn" id="search-btn" aria-label="搜尋" title="搜尋 (⌘K)">
@@ -4571,6 +4587,42 @@ async function init() {
   try { tree = await loadTree(); } catch(e) { /* fall through */ }
 
   if (!tree || !tree.length) {
+    if (CONFIG.localMode) {
+      // Local mode never involves GitHub — figure out what actually failed
+      // (same classification as syncOffline's grab) and say so.
+      let kind = 'error';
+      try {
+        const r = await fetch(`${CONFIG.tripsDir}/index.json?sync=${Date.now()}`,
+                              { cache: 'no-store', redirect: 'manual', credentials: 'same-origin' });
+        if (r.type === 'opaqueredirect' || r.status === 401 || r.status === 403 ||
+            (r.ok && (r.headers.get('content-type') || '').includes('text/html'))) kind = 'auth';
+        else if (!r.ok) kind = 'error';
+        else kind = 'empty';
+      } catch (e) { kind = 'offline'; }
+      const msg = {
+        auth:    ['需要重新登入', 'Cloudflare Access 登入已過期，而這台裝置還沒有同步過的行程可以離線顯示。登入後會自動載入。', '重新登入'],
+        offline: ['目前離線', '沒有網路連線，而這台裝置還沒有同步過的行程可以離線顯示。連上網路後再試一次。', '重試'],
+        empty:   ['找不到行程', `${escHTML(CONFIG.tripsDir)}/index.json 讀得到，但裡面沒有任何行程。重新執行 scripts/build-manifest.js（私人版）或 scripts/redact.js（公開版）產生 manifest 後再部署。`, '重試'],
+        error:   ['載入失敗', '伺服器回應錯誤，行程資料暫時抓不到。稍後再試一次。', '重試'],
+      }[kind];
+      $('#app').innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">⚠</div>
+          <h2>${msg[0]}</h2>
+          <p>${msg[1]}</p>
+          <button id="error-action" style="margin-top:16px;padding:10px 24px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:15px;cursor:pointer;">${msg[2]}</button>
+        </div>`;
+      $('#error-action').addEventListener('click', () => {
+        if (kind === 'auth') {
+          const go = new URL(location.href);
+          go.searchParams.set('login', Date.now());   // sw.js lets this navigation reach Access
+          location.href = go.href;
+        } else {
+          location.reload();
+        }
+      });
+      return;
+    }
     $('#app').innerHTML = `
       <div class="error-state">
         <div class="error-icon">⚠</div>
@@ -4685,7 +4737,109 @@ window.addEventListener('popstate', () => {
   goTo({ trip: r.trip, version: r.version, tab: r.tab, item: r.item });
 });
 
+/* =========================================================
+   OFFLINE SYNC (PWA)
+   sw.js serves cached copies when offline. Cloudflare Access logins
+   can only be renewed by a top-level navigation, so this layer
+   fetches every trip file itself (bypassing the worker via ?sync=),
+   detects a login redirect, and replaces the cache only when every
+   file came back clean.
+   ========================================================= */
+const DATA_CACHE = 'trip-data';          // shared with sw.js — keep the name in sync
+const SYNC_KEY = 'trip-last-sync';
+
+function fmtSyncTime(ts) {
+  if (!ts) return '';
+  const d = new Date(Number(ts));
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function setSyncState(st) {
+  const btn = $('#sync-btn');
+  let last = null;
+  try { last = localStorage.getItem(SYNC_KEY); } catch (e) {}
+  const t = fmtSyncTime(last);
+  const text = {
+    syncing: ['同步中…', '正在下載所有行程到這台裝置'],
+    ok:      [`已同步 ${t}`, '離線也能看。點一下立即更新'],
+    offline: [t ? `離線 · ${t} 版` : '離線', '沒有網路，顯示的是上次同步的版本。點一下重試'],
+    auth:    ['需重新登入', 'Cloudflare 登入已過期，顯示的是上次同步的版本。點一下登入，回來後自動同步'],
+    error:   ['同步失敗', '伺服器回應錯誤，舊資料保留。點一下重試'],
+  }[st];
+  btn.dataset.state = st;
+  $('#sync-label').textContent = text[0];
+  btn.title = text[1];
+  btn.hidden = false;
+}
+
+async function syncOffline({ reloadOnSuccess = false } = {}) {
+  setSyncState('syncing');
+  const bust = Date.now();
+  const grab = async (path) => {
+    const r = await fetch(`${path}?sync=${bust}`, { cache: 'no-store', redirect: 'manual', credentials: 'same-origin' });
+    if (r.type === 'opaqueredirect' || r.status === 401 || r.status === 403) throw { kind: 'auth' };
+    if (!r.ok) throw { kind: 'error' };
+    // Access answers data URLs with its HTML login page when the session lapsed.
+    if ((r.headers.get('content-type') || '').includes('text/html')) throw { kind: 'auth' };
+    return r;
+  };
+  try {
+    const indexPath = `${CONFIG.tripsDir}/index.json`;
+    const indexRes = await grab(indexPath);
+    const manifest = await indexRes.clone().json();
+    const paths = manifest.flatMap(t => (t.versions || []).map(v => `${CONFIG.tripsDir}/${t.trip}/${v}.md`));
+    const responses = await Promise.all(paths.map(grab));
+    const cache = await caches.open(DATA_CACHE);
+    const abs = p => new URL(p, location.href).href;
+    await Promise.all([
+      cache.put(abs(indexPath), indexRes),
+      ...paths.map((p, i) => cache.put(abs(p), responses[i])),
+    ]);
+    // Repo-hosted photos referenced by the trips (best effort — a missing
+    // photo must not fail the sync; the card shows its own fallback).
+    const texts = await Promise.all(paths.map((p, i) => cache.match(abs(p)).then(r => r ? r.text() : '')));
+    const imgs = [...new Set(texts.join('\n').match(/images\/[^\s)"']+\.(?:jpe?g|png|webp|gif)/gi) || [])];
+    await Promise.allSettled(imgs.map(async p => {
+      const r = await fetch(`${p}?sync=${bust}`, { redirect: 'manual', credentials: 'same-origin' });
+      if (r.ok && r.type !== 'opaqueredirect' && (r.headers.get('content-type') || '').startsWith('image/')) {
+        await cache.put(abs(p), r);
+      }
+    }));
+    try { localStorage.setItem(SYNC_KEY, String(Date.now())); } catch (e) {}
+    setSyncState('ok');
+    if (reloadOnSuccess) location.reload();
+  } catch (e) {
+    // fetch() rejects with TypeError when there is no network at all.
+    setSyncState(e && e.kind ? e.kind : 'offline');
+  }
+}
+
+function initOfflineSync() {
+  // GitHub mode reads raw.githubusercontent.com — offline sync covers local mode only.
+  if (!CONFIG.localMode || !('serviceWorker' in navigator) || !('caches' in window)) return;
+  navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW register failed', e));
+
+  // Back from the Access login screen: drop the marker and sync right away.
+  const u = new URL(location.href);
+  const fromLogin = u.searchParams.has('login');
+  if (fromLogin) { u.searchParams.delete('login'); history.replaceState(null, '', u); }
+
+  $('#sync-btn').addEventListener('click', () => {
+    if ($('#sync-btn').dataset.state === 'auth') {
+      const go = new URL(location.href);
+      go.searchParams.set('login', Date.now());   // sw.js lets this navigation reach Access
+      location.href = go.href;
+      return;
+    }
+    syncOffline({ reloadOnSuccess: true });
+  });
+  window.addEventListener('online', () => syncOffline());
+  syncOffline();   // a page just back from login is already fresh — no reload needed
+}
+
 /* Kick off */
+initOfflineSync();
 init();
 
 </script>

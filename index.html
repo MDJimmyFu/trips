@@ -4584,6 +4584,42 @@ async function init() {
   try { tree = await loadTree(); } catch(e) { /* fall through */ }
 
   if (!tree || !tree.length) {
+    if (CONFIG.localMode) {
+      // Local mode never involves GitHub — figure out what actually failed
+      // (same classification as syncOffline's grab) and say so.
+      let kind = 'error';
+      try {
+        const r = await fetch(`${CONFIG.tripsDir}/index.json?sync=${Date.now()}`,
+                              { cache: 'no-store', redirect: 'manual', credentials: 'same-origin' });
+        if (r.type === 'opaqueredirect' || r.status === 401 || r.status === 403 ||
+            (r.ok && (r.headers.get('content-type') || '').includes('text/html'))) kind = 'auth';
+        else if (!r.ok) kind = 'error';
+        else kind = 'empty';
+      } catch (e) { kind = 'offline'; }
+      const msg = {
+        auth:    ['需要重新登入', 'Cloudflare Access 登入已過期，而這台裝置還沒有同步過的行程可以離線顯示。登入後會自動載入。', '重新登入'],
+        offline: ['目前離線', '沒有網路連線，而這台裝置還沒有同步過的行程可以離線顯示。連上網路後再試一次。', '重試'],
+        empty:   ['找不到行程', `${escHTML(CONFIG.tripsDir)}/index.json 讀得到，但裡面沒有任何行程。重新執行 scripts/build-manifest.js（私人版）或 scripts/redact.js（公開版）產生 manifest 後再部署。`, '重試'],
+        error:   ['載入失敗', '伺服器回應錯誤，行程資料暫時抓不到。稍後再試一次。', '重試'],
+      }[kind];
+      $('#app').innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">⚠</div>
+          <h2>${msg[0]}</h2>
+          <p>${msg[1]}</p>
+          <button id="error-action" style="margin-top:16px;padding:10px 24px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:15px;cursor:pointer;">${msg[2]}</button>
+        </div>`;
+      $('#error-action').addEventListener('click', () => {
+        if (kind === 'auth') {
+          const go = new URL(location.href);
+          go.searchParams.set('login', Date.now());   // sw.js lets this navigation reach Access
+          location.href = go.href;
+        } else {
+          location.reload();
+        }
+      });
+      return;
+    }
     $('#app').innerHTML = `
       <div class="error-state">
         <div class="error-icon">⚠</div>
